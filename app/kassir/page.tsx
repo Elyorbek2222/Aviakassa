@@ -33,6 +33,7 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          mijozIsmi: form.mijozIsmi || (form.valyuta === 'usd' && !form.biletRaqam ? 'Obmen' : form.mijozIsmi),
           summAsl: form.valyuta === 'usd' ? Number(form.summAsl) : undefined,
           kurs: form.valyuta === 'usd' ? Number(form.kurs) : undefined,
           summa: Number(form.summa),
@@ -81,13 +82,21 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
         Yangi Prixod
       </h3>
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Bilet Raqami</label>
-          <input type="text" value={form.biletRaqam} onChange={(e) => setForm({ ...form, biletRaqam: e.target.value })} placeholder="001-1234567890" required style={inputStyle} />
-        </div>
+        {form.valyuta !== 'usd' && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Bilet Raqami</label>
+            <input type="text" value={form.biletRaqam} onChange={(e) => setForm({ ...form, biletRaqam: e.target.value })} placeholder="001-1234567890" style={inputStyle} />
+          </div>
+        )}
+        {form.valyuta === 'usd' && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Bilet Raqami (ixtiyoriy — obmen bo&apos;lsa bo&apos;sh qoldiring)</label>
+            <input type="text" value={form.biletRaqam} onChange={(e) => setForm({ ...form, biletRaqam: e.target.value })} placeholder="Bo'sh = Obmen" style={inputStyle} />
+          </div>
+        )}
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Mijoz Ismi</label>
-          <input type="text" value={form.mijozIsmi} onChange={(e) => setForm({ ...form, mijozIsmi: e.target.value })} placeholder="Familiya Ism" required style={inputStyle} />
+          <input type="text" value={form.mijozIsmi} onChange={(e) => setForm({ ...form, mijozIsmi: e.target.value })} placeholder={form.valyuta === 'usd' && !form.biletRaqam ? 'Obmen' : 'Familiya Ism'} style={inputStyle} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
           <div>
