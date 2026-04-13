@@ -274,12 +274,22 @@ export default function KassirPage() {
     fetcher,
     { refreshInterval: 15000 }
   );
+  const { data: rasxodData, mutate: mutateRasxod } = useSWR('/api/avia/rasxod', fetcher, { refreshInterval: 15000 });
+  const { data: refundData, mutate: mutateRefund } = useSWR('/api/avia/refund', fetcher, { refreshInterval: 15000 });
 
   const payments = paymentsData?.payments || [];
+  const rasxodlar = (rasxodData?.rasxodlar || []).filter((r: { sana: string }) => r.sana === today);
+  const refundlar = (refundData?.refundlar || []).filter((r: { sana: string }) => r.sana === today);
+
   const naqd = payments.filter((p: { tolovTuri: string }) => p.tolovTuri === 'naqd').reduce((s: number, p: { summa: number }) => s + p.summa, 0);
   const plastik = payments.filter((p: { tolovTuri: string }) => p.tolovTuri === 'plastik').reduce((s: number, p: { summa: number }) => s + p.summa, 0);
   const perechisleniya = payments.filter((p: { tolovTuri: string }) => p.tolovTuri === 'perechisleniya').reduce((s: number, p: { summa: number }) => s + p.summa, 0);
-  const jamiStok = naqd + plastik + perechisleniya;
+  const jamiPrixod = naqd + plastik + perechisleniya;
+  const jamiRasxod = rasxodlar.reduce((s: number, r: { summa: number }) => s + r.summa, 0);
+  const jamiRefund = refundlar.reduce((s: number, r: { summa: number }) => s + r.summa, 0);
+  const ostatok = jamiPrixod - jamiRasxod - jamiRefund;
+
+  const refreshAll = () => { refreshAll(); mutateRasxod(); mutateRefund(); };
 
   return (
     <div>
@@ -306,33 +316,52 @@ export default function KassirPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         {/* Left: Form (tab bo'yicha) */}
-        {tab === 'prixod' && <PaymentForm onSuccess={() => mutatePayments()} />}
-        {tab === 'rasxod' && <RasxodForm onSuccess={() => mutatePayments()} />}
-        {tab === 'refund' && <RefundForm onSuccess={() => mutatePayments()} />}
+        {tab === 'prixod' && <PaymentForm onSuccess={() => refreshAll()} />}
+        {tab === 'rasxod' && <RasxodForm onSuccess={() => refreshAll()} />}
+        {tab === 'refund' && <RefundForm onSuccess={() => refreshAll()} />}
 
         {/* Right: KPI + Table */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Stok KPI */}
+          {/* Ostatok Banner */}
+          <div style={{
+            backgroundColor: '#141F19', border: `2px solid ${ostatok >= 0 ? '#7CFF4F40' : '#FF5C5C40'}`,
+            borderRadius: 12, padding: 20, textAlign: 'center', marginBottom: 4,
+          }}>
+            <div style={{ color: '#8A9A8F', fontSize: 13, marginBottom: 4 }}>KUNLIK OSTATOK (BALANCE)</div>
+            <div style={{ color: ostatok >= 0 ? '#7CFF4F' : '#FF5C5C', fontSize: 32, fontWeight: 800 }}>
+              {formatMoney(ostatok)} so&apos;m
+            </div>
+            <div style={{ color: '#4A5C50', fontSize: 12, marginTop: 8 }}>
+              Prixod: {formatMoney(jamiPrixod)} — Rasxod: {formatMoney(jamiRasxod)} — Refund: {formatMoney(jamiRefund)}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+              <Banknote size={18} style={{ color: '#7CFF4F', margin: '0 auto 6px' }} />
+              <div style={{ color: '#8A9A8F', fontSize: 11 }}>Naqd</div>
+              <div style={{ color: '#7CFF4F', fontSize: 16, fontWeight: 700 }}>{formatMoney(naqd)}</div>
+            </div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+              <Smartphone size={18} style={{ color: '#2CA5E0', margin: '0 auto 6px' }} />
+              <div style={{ color: '#8A9A8F', fontSize: 11 }}>Plastik</div>
+              <div style={{ color: '#2CA5E0', fontSize: 16, fontWeight: 700 }}>{formatMoney(plastik)}</div>
+            </div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+              <Building2 size={18} style={{ color: '#9B59B6', margin: '0 auto 6px' }} />
+              <div style={{ color: '#8A9A8F', fontSize: 11 }}>Perechisleniya</div>
+              <div style={{ color: '#9B59B6', fontSize: 16, fontWeight: 700 }}>{formatMoney(perechisleniya)}</div>
+            </div>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-              <Banknote size={20} style={{ color: '#7CFF4F', margin: '0 auto 8px' }} />
-              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Naqd</div>
-              <div style={{ color: '#7CFF4F', fontSize: 20, fontWeight: 700 }}>{formatMoney(naqd)}</div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #FF5C5C30', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+              <div style={{ color: '#8A9A8F', fontSize: 11 }}>Rasxod</div>
+              <div style={{ color: '#FF5C5C', fontSize: 16, fontWeight: 700 }}>-{formatMoney(jamiRasxod)}</div>
             </div>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-              <Smartphone size={20} style={{ color: '#2CA5E0', margin: '0 auto 8px' }} />
-              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Plastik</div>
-              <div style={{ color: '#2CA5E0', fontSize: 20, fontWeight: 700 }}>{formatMoney(plastik)}</div>
-            </div>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-              <Building2 size={20} style={{ color: '#9B59B6', margin: '0 auto 8px' }} />
-              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Perechisleniya</div>
-              <div style={{ color: '#9B59B6', fontSize: 20, fontWeight: 700 }}>{formatMoney(perechisleniya)}</div>
-            </div>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-              <CreditCard size={20} style={{ color: '#F5A623', margin: '0 auto 8px' }} />
-              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Jami Stok</div>
-              <div style={{ color: '#F5A623', fontSize: 20, fontWeight: 700 }}>{formatMoney(jamiStok)}</div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #F5A62330', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+              <div style={{ color: '#8A9A8F', fontSize: 11 }}>Refund</div>
+              <div style={{ color: '#F5A623', fontSize: 16, fontWeight: 700 }}>-{formatMoney(jamiRefund)}</div>
             </div>
           </div>
 
