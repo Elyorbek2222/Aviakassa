@@ -1,0 +1,198 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getTickets, getPayments, getInkassatsiya, getSettings } from '@/lib/avia-storage';
+import type {
+  AviaTicket,
+  AviaPayment,
+  AviaKPI,
+  AviaSalesPoint,
+  AirlineStat,
+  AgentStat,
+  DebtRecord,
+  PartnerDebt,
+  AirlineKey,
+  PaymentType,
+} from '@/types/avia';
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    const agentFilter = searchParams.get('agent');
+    const airlineFilter = searchParams.get('airline');
+
+    const settings = getSettings();
+    let tickets = getTickets();
+    let payments = getPayments();
+    const inkassatsiya = getInkassatsiya();
+
+    // Apply date filters
+    if (from) {
+      tickets = tickets.filter((t) => t.sana >= from);
+      payments = payments.filter((p) => p.sana >= from);
+    }
+    if (to) {
+      tickets = tickets.filter((t) => t.sana <= to);
+      payments = payments.filter((p) => p.sana <= to);
+    }
+    if (agentFilter) {
+      tickets = tickets.filter((t) => t.agent === agentFilter);
+    }
+    if (airlineFilter) {
+      tickets = tickets.filter((t) => t.airline === airlineFilter);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // KPI calculations
+    const bugunBiletlar = tickets.filter((t) => t.sana === today).length;
+    const jamiSotuv = tickets.reduce((s, t) => s + t.sotishNarxi, 0);
+
+    // Payment totals by type
+    const naqd = payments
+      .filter((p) => p.tolovTuri === 'naqd')
+      .reduce((s, p) => s + p.summa, 0);
+    const plastik = payments
+      .filter((p) => p.tolovTuri === 'plastik')
+      .reduce((s, p) => s + p.summa, 0);
+    const perechisleniya = payments
+      .filter((p) => p.tolovTuri === 'perechisleniya')
+      .reduce((s, p) => s + p.summa, 0);
+    const jamiPrixod = naqd + plastik + perechisleniya;
+    const jamiInkassatsiya = inkassatsiya.reduce((s, i) => s + i.summa, 0);
+    const stok = jamiPrixod - jamiInkassatsiya;
+
+    // Foyda = (sotish - tarif) + (tarif * komissiya%) for each ticket
+    const sofFoyda = tickets.reduce((s, t) => {
+      const usluga = t.sotishNarxi - t.tarif;
+      const config = settings.airlines.find((a) => a.key === t.airline);
+      const komissiya = t.tarif * ((config?.komissiya ?? 0) / 100);
+      return s + usluga + komissiya;
+    }, 0);
+
+    // Partner debts (airline-level)
+    const airlineMap = new Map<AirlineKey, { biletlarSumma: number; inkassatsiya: number; biletlar: number }>();
+    for (const t of tickets) {
+      const existing = airlineMap.get(t.airline) || { biletlarSumma: 0, inkassatsiya: 0, biletlar: 0 };
+      existing.biletlarSumma += t.tarif;
+      existing.biletlar += 1;
+      airlineMap.set(t.airline, existing);
+    }
+    for (const i of inkassatsiya) {
+      const existing = airlineMap.get(i.airline) || { biletlarSumma: 0, inkassatsiya: 0, biletlar: 0 };
+      existing.inkassatsiya += i.summa;
+      airlineMap.set(i.airline, existing);
+    }
+
+    const partnerDebts: PartnerDebt[] = [];
+    let jamiQarzdorlik = 0;
+    for (const [airline, data] of airlineMap) {
+      const qarz = data.biletlarSumma - data.inkassatsiya;
+      if (Math.abs(qarz) > 0 || data.biletlar > 0) {
+        partnerDebts.push({
+          airline,
+          biletlarSumma: data.biletlarSumma,
+          inkassatsiya: data.inkassatsiya,
+          qarz,
+          biletlar: data.biletlar,
+        });
+      }
+      if (qarz > 0) jamiQarzdorlik += qarz;
+    }
+
+    // Customer debts (bilet-level: sotishNarxi - tolangan)
+    const paymentsByTicket = new Map<string, number>();
+    for (const p of payments) {
+      paymentsByTicket.set(p.biletRaqam, (paymentsByTicket.get(p.biletRaqam) || 0) + p.summa);
+    }
+
+    const debts: DebtRecord[] = [];
+    for (const t of tickets) {
+      const tolangan = paymentsByTicket.get(t.biletRaqam) || 0;
+      const qarz = t.sotishNarxi - tolangan;
+      if (qarz > 0) {
+        debts.push({
+          biletRaqam: t.biletRaqam,
+          mijozIsmi: t.yolovchi,
+          sotishNarxi: t.sotishNarxi,
+          tolangan,
+          qarz,
+          sana: t.sana,
+          airline: t.airline,
+          biletId: t.id,
+        });
+      }
+    }
+
+    // Sales trend (daily)
+    const salesByDate = new Map<string, { sotuv: number; biletlar: number }>();
+    for (const t of tickets) {
+      const existing = salesByDate.get(t.sana) || { sotuv: 0, biletlar: 0 };
+      existing.sotuv += t.sotishNarxi;
+      existing.biletlar += 1;
+      salesByDate.set(t.sana, existing);
+    }
+    const salesTrend: AviaSalesPoint[] = Array.from(salesByDate.entries())
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Airline stats
+    const airlineStatsMap = new Map<AirlineKey, { biletlar: number; sotuv: number; foyda: number }>();
+    for (const t of tickets) {
+      const existing = airlineStatsMap.get(t.airline) || { biletlar: 0, sotuv: 0, foyda: 0 };
+      existing.biletlar += 1;
+      existing.sotuv += t.sotishNarxi;
+      const cfg = settings.airlines.find((a) => a.key === t.airline);
+      existing.foyda += (t.sotishNarxi - t.tarif) + t.tarif * ((cfg?.komissiya ?? 0) / 100);
+      airlineStatsMap.set(t.airline, existing);
+    }
+    const airlineStats: AirlineStat[] = Array.from(airlineStatsMap.entries()).map(
+      ([airline, data]) => ({ airline, ...data })
+    );
+
+    // Agent stats
+    const agentStatsMap = new Map<string, { biletlar: number; sotuv: number; foyda: number }>();
+    for (const t of tickets) {
+      const existing = agentStatsMap.get(t.agent) || { biletlar: 0, sotuv: 0, foyda: 0 };
+      existing.biletlar += 1;
+      existing.sotuv += t.sotishNarxi;
+      const acfg = settings.airlines.find((a) => a.key === t.airline);
+      existing.foyda += (t.sotishNarxi - t.tarif) + t.tarif * ((acfg?.komissiya ?? 0) / 100);
+      agentStatsMap.set(t.agent, existing);
+    }
+    const agentStats: AgentStat[] = Array.from(agentStatsMap.entries()).map(
+      ([agent, data]) => ({ agent, ...data })
+    );
+
+    // Payment breakdown
+    const paymentBreakdown: Record<PaymentType, number> = {
+      naqd,
+      plastik,
+      perechisleniya,
+    };
+
+    const kpi: AviaKPI = {
+      jamiBiletlar: tickets.length,
+      bugunBiletlar,
+      jamiSotuv,
+      stok,
+      jamiQarzdorlik,
+      sofFoyda,
+      naqd,
+      plastik,
+      perechisleniya,
+    };
+
+    return NextResponse.json({
+      kpi,
+      salesTrend,
+      airlineStats,
+      agentStats,
+      debts,
+      partnerDebts,
+      paymentBreakdown,
+    });
+  } catch {
+    return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
+  }
+}
