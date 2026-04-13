@@ -4,6 +4,8 @@ import type {
   AviaTicket,
   AviaPayment,
   Inkassatsiya,
+  Rasxod,
+  Refund,
   AviaSettings,
   AirlineConfig,
 } from '../types/avia';
@@ -40,7 +42,7 @@ function writeJSON<T>(filename: string, data: T): void {
 
 export const DEFAULT_SETTINGS: AviaSettings = {
   airlines: [
-    { key: 'ozhyo', name: "O'zbekiston Havo Yo'llari", komissiya: 7, active: true },
+    { key: 'uzairways', name: "UZAIRWAYS", komissiya: 7, active: true },
     { key: 'silk_avia', name: 'Silk Avia', komissiya: 5, active: true },
     { key: 'centrum', name: 'Centrum', komissiya: 3, active: true },
     { key: 'don_avia', name: 'Don Avia', komissiya: 0, active: true },
@@ -101,6 +103,32 @@ export function addInkassatsiya(item: Inkassatsiya): Inkassatsiya[] {
   const existing = getInkassatsiya();
   const updated = [...existing, item];
   writeJSON('inkassatsiya.json', updated);
+  return updated;
+}
+
+// ===== Rasxod =====
+
+export function getRasxodlar(): Rasxod[] {
+  return readJSON<Rasxod[]>('rasxod.json', []);
+}
+
+export function addRasxod(item: Rasxod): Rasxod[] {
+  const existing = getRasxodlar();
+  const updated = [...existing, item];
+  writeJSON('rasxod.json', updated);
+  return updated;
+}
+
+// ===== Refund =====
+
+export function getRefundlar(): Refund[] {
+  return readJSON<Refund[]>('refund.json', []);
+}
+
+export function addRefund(item: Refund): Refund[] {
+  const existing = getRefundlar();
+  const updated = [...existing, item];
+  writeJSON('refund.json', updated);
   return updated;
 }
 

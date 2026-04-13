@@ -10,7 +10,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function InkassatsiyaForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({
-    airline: 'ozhyo' as AirlineKey,
+    airline: 'uzairways' as AirlineKey,
     summa: '',
     izoh: '',
   });
@@ -35,7 +35,7 @@ function InkassatsiyaForm({ onSuccess }: { onSuccess: () => void }) {
 
       if (res.ok) {
         setMessage('Inkassatsiya saqlandi!');
-        setForm({ airline: 'ozhyo', summa: '', izoh: '' });
+        setForm({ airline: 'uzairways', summa: '', izoh: '' });
         onSuccess();
       } else {
         setMessage('Xatolik yuz berdi');

@@ -10,12 +10,13 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function TicketForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({
-    airline: 'ozhyo' as AirlineKey,
+    airline: 'uzairways' as AirlineKey,
     biletRaqam: '',
     yolovchi: '',
     passengerCount: 1,
     tarif: '',
     sotishNarxi: '',
+    izoh: '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -34,12 +35,13 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
           airlineName: AIRLINE_LABELS[form.airline] || form.airline,
           tarif: Number(form.tarif),
           sotishNarxi: Number(form.sotishNarxi),
+          izoh: form.izoh || undefined,
         }),
       });
 
       if (res.ok) {
         setMessage('Bilet saqlandi!');
-        setForm({ airline: 'ozhyo', biletRaqam: '', yolovchi: '', passengerCount: 1, tarif: '', sotishNarxi: '' });
+        setForm({ airline: 'uzairways', biletRaqam: '', yolovchi: '', passengerCount: 1, tarif: '', sotishNarxi: '', izoh: '' });
         onSuccess();
       } else {
         setMessage('Xatolik yuz berdi');
@@ -145,6 +147,16 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
             onChange={(e) => setForm({ ...form, passengerCount: Number(e.target.value) })}
             min={1}
             style={inputStyle}
+          />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Kommentariya</label>
+          <textarea
+            value={form.izoh}
+            onChange={(e) => setForm({ ...form, izoh: e.target.value })}
+            placeholder="Qo'shimcha izoh..."
+            rows={2}
+            style={{ ...inputStyle, resize: 'vertical' as const, minHeight: 50 }}
           />
         </div>
 

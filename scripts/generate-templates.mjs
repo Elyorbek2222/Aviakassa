@@ -12,7 +12,7 @@ const workbook = XLSX.utils.book_new()
 // ===== SHEET 1: BILETLAR =====
 const biletHeaders = [
   'SANA',
-  "O'zHYo",
+  "UZAIRWAYS",
   'SILK AVIA',
   'CENTRUM',
   'DON AVIA',

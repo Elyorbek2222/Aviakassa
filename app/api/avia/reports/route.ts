@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTickets, getPayments, getInkassatsiya, getSettings } from '@/lib/avia-storage';
+import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings } from '@/lib/avia-storage';
 import type {
   AviaTicket,
   AviaPayment,
@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
     let tickets = getTickets();
     let payments = getPayments();
     const inkassatsiya = getInkassatsiya();
+    const rasxodlar = getRasxodlar();
+    const refundlar = getRefundlar();
 
     // Apply date filters
     if (from) {
@@ -60,7 +62,9 @@ export async function GET(request: NextRequest) {
       .reduce((s, p) => s + p.summa, 0);
     const jamiPrixod = naqd + plastik + perechisleniya;
     const jamiInkassatsiya = inkassatsiya.reduce((s, i) => s + i.summa, 0);
-    const stok = jamiPrixod - jamiInkassatsiya;
+    const jamiRasxod = rasxodlar.reduce((s, r) => s + r.summa, 0);
+    const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
+    const stok = jamiPrixod - jamiInkassatsiya - jamiRasxod - jamiRefund;
 
     // Foyda = (sotish - tarif) + (tarif * komissiya%) for each ticket
     const sofFoyda = tickets.reduce((s, t) => {

@@ -62,7 +62,7 @@ function toNumber(value: unknown): number {
  * Parse ticket Excel file.
  * Columns A-M:
  * A: SANA (date)
- * B: O'zHYo narx
+ * B: UZAIRWAYS narx
  * C: Silk narx
  * D: Centrum narx
  * E: Don narx
@@ -87,7 +87,7 @@ export function parseTicketsExcel(buffer: Buffer): AviaTicket[] {
 
   // Airline column mapping: column letter → AirlineKey
   const airlineColumns: { col: string; key: AirlineKey }[] = [
-    { col: 'B', key: 'ozhyo' },
+    { col: 'B', key: 'uzairways' },
     { col: 'C', key: 'silk_avia' },
     { col: 'D', key: 'centrum' },
     { col: 'E', key: 'don_avia' },
@@ -232,10 +232,10 @@ export function parsePaymentsExcel(buffer: Buffer): AviaPayment[] {
 import type { Inkassatsiya, AirlineKey as AK2 } from '../types/avia';
 
 const AIRLINE_NAME_MAP: Record<string, AK2> = {
-  "o'zbekiston havo yo'llari": 'ozhyo',
-  "ozhyo": 'ozhyo',
-  "havo yo'llari": 'ozhyo',
-  "uzbekistan airways": 'ozhyo',
+  "o'zbekiston havo yo'llari": 'uzairways',
+  "uzairways": 'uzairways',
+  "havo yo'llari": 'uzairways',
+  "uzbekistan airways": 'uzairways',
   "silk avia": 'silk_avia',
   "silk": 'silk_avia',
   "centrum": 'centrum',

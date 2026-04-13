@@ -158,7 +158,116 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+function RasxodForm({ onSuccess }: { onSuccess: () => void }) {
+  const [summa, setSumma] = useState('');
+  const [sabab, setSabab] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/avia/rasxod', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summa: Number(summa), sabab }),
+      });
+      if (res.ok) {
+        setMessage('Rasxod saqlandi!');
+        setSumma(''); setSabab('');
+        onSuccess();
+      } else setMessage('Xatolik');
+    } catch { setMessage('Xatolik'); }
+    finally { setLoading(false); }
+  };
+
+  const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: '#0A0F0D', color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const };
+
+  return (
+    <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 24 }}>
+      <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: '#FF5C5C' }}>📤</span> Rasxod (Chiqim)
+      </h3>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', color: '#8A9A8F', fontSize: 13, marginBottom: 6 }}>Summa (UZS)</label>
+          <input type="number" value={summa} onChange={e => setSumma(e.target.value)} placeholder="0" required style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', color: '#8A9A8F', fontSize: 13, marginBottom: 6 }}>Sabab</label>
+          <input type="text" value={sabab} onChange={e => setSabab(e.target.value)} placeholder="Nima uchun chiqim?" required style={inputStyle} />
+        </div>
+        {message && <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: message.includes('saqlandi') ? 'rgba(124,255,79,0.1)' : 'rgba(255,59,48,0.1)', color: message.includes('saqlandi') ? '#7CFF4F' : '#FF3B30', fontSize: 13, marginBottom: 14 }}>{message}</div>}
+        <button type="submit" disabled={loading} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#FF5C5C', color: '#fff', fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+          {loading ? 'Saqlanmoqda...' : 'Rasxod yozish'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function RefundForm({ onSuccess }: { onSuccess: () => void }) {
+  const [biletRaqam, setBiletRaqam] = useState('');
+  const [mijozIsmi, setMijozIsmi] = useState('');
+  const [summa, setSumma] = useState('');
+  const [izoh, setIzoh] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('/api/avia/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ biletRaqam, mijozIsmi, summa: Number(summa), izoh }),
+      });
+      if (res.ok) {
+        setMessage('Refund saqlandi!');
+        setBiletRaqam(''); setMijozIsmi(''); setSumma(''); setIzoh('');
+        onSuccess();
+      } else setMessage('Xatolik');
+    } catch { setMessage('Xatolik'); }
+    finally { setLoading(false); }
+  };
+
+  const inputStyle = { width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: '#0A0F0D', color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const };
+
+  return (
+    <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 24 }}>
+      <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: '#F5A623' }}>↩️</span> Refund (Pul qaytarish)
+      </h3>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', color: '#8A9A8F', fontSize: 13, marginBottom: 6 }}>Bilet Raqami</label>
+          <input type="text" value={biletRaqam} onChange={e => setBiletRaqam(e.target.value)} placeholder="001-1234567890" required style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', color: '#8A9A8F', fontSize: 13, marginBottom: 6 }}>Mijoz Ismi</label>
+          <input type="text" value={mijozIsmi} onChange={e => setMijozIsmi(e.target.value)} placeholder="Familiya Ism" required style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', color: '#8A9A8F', fontSize: 13, marginBottom: 6 }}>Qaytariladigan summa (UZS)</label>
+          <input type="number" value={summa} onChange={e => setSumma(e.target.value)} placeholder="0" required style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', color: '#8A9A8F', fontSize: 13, marginBottom: 6 }}>Izoh</label>
+          <input type="text" value={izoh} onChange={e => setIzoh(e.target.value)} placeholder="Sabab" style={inputStyle} />
+        </div>
+        {message && <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: message.includes('saqlandi') ? 'rgba(124,255,79,0.1)' : 'rgba(255,59,48,0.1)', color: message.includes('saqlandi') ? '#7CFF4F' : '#FF3B30', fontSize: 13, marginBottom: 14 }}>{message}</div>}
+        <button type="submit" disabled={loading} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#F5A623', color: '#0A0F0D', fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+          {loading ? 'Saqlanmoqda...' : 'Refund yozish'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function KassirPage() {
+  const [tab, setTab] = useState<'prixod' | 'rasxod' | 'refund'>('prixod');
   const today = new Date().toISOString().split('T')[0];
   const { data: paymentsData, mutate: mutatePayments } = useSWR(
     `/api/avia/payments?from=${today}&to=${today}`,
@@ -178,9 +287,28 @@ export default function KassirPage() {
         Prixod Kirgizish
       </h1>
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {[
+          { key: 'prixod' as const, label: '📥 Prixod', color: '#2CA5E0' },
+          { key: 'rasxod' as const, label: '📤 Rasxod', color: '#FF5C5C' },
+          { key: 'refund' as const, label: '↩️ Refund', color: '#F5A623' },
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            padding: '10px 20px', borderRadius: 8, border: `1px solid ${tab === t.key ? t.color : '#1E2E24'}`,
+            backgroundColor: tab === t.key ? t.color + '20' : 'transparent',
+            color: tab === t.key ? t.color : '#8A9A8F', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
-        {/* Left: Form */}
-        <PaymentForm onSuccess={() => mutatePayments()} />
+        {/* Left: Form (tab bo'yicha) */}
+        {tab === 'prixod' && <PaymentForm onSuccess={() => mutatePayments()} />}
+        {tab === 'rasxod' && <RasxodForm onSuccess={() => mutatePayments()} />}
+        {tab === 'refund' && <RefundForm onSuccess={() => mutatePayments()} />}
 
         {/* Right: KPI + Table */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

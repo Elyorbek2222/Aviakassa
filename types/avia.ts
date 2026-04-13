@@ -1,9 +1,9 @@
 // ===== Airline Types =====
 
-export type AirlineKey = 'ozhyo' | 'silk_avia' | 'centrum' | 'don_avia' | 'easybooking' | 'boshqa';
+export type AirlineKey = 'uzairways' | 'silk_avia' | 'centrum' | 'don_avia' | 'easybooking' | 'boshqa';
 
 export const AIRLINE_LABELS: Record<AirlineKey, string> = {
-  ozhyo: "O'zbekiston Havo Yo'llari",
+  uzairways: "UZAIRWAYS",
   silk_avia: 'Silk Avia',
   centrum: 'Centrum',
   don_avia: 'Don Avia',
@@ -53,6 +53,26 @@ export interface Inkassatsiya {
   sana: string; // YYYY-MM-DD
   airline: AirlineKey;
   airlineName: string;
+  summa: number; // UZS
+  izoh?: string;
+}
+
+// ===== Rasxod (Kassir chiqimlari) =====
+
+export interface Rasxod {
+  id: string;
+  sana: string;
+  summa: number; // UZS
+  sabab: string; // nima uchun chiqim
+}
+
+// ===== Refund (Bilet puli qaytarish) =====
+
+export interface Refund {
+  id: string;
+  sana: string;
+  biletRaqam: string;
+  mijozIsmi: string;
   summa: number; // UZS
   izoh?: string;
 }

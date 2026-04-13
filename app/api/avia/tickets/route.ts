@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     const tickets = addSingleTicket(ticket);
 
     // Google Sheets'ga ham yozish (asinxron — kutmaymiz)
-    const airlineCols = { ozhyo: 1, silk_avia: 2, centrum: 3, don_avia: 4, easybooking: 5, boshqa: 6 };
+    const airlineCols = { uzairways: 1, silk_avia: 2, centrum: 3, don_avia: 4, easybooking: 5, boshqa: 6 };
     const row: (string | number)[] = [today, '', '', '', '', '', '', '', body.biletRaqam, body.yolovchi, tarif, sotishNarxi, agentName];
     const colIdx = airlineCols[airlineKey] ?? 6;
     row[colIdx] = tarif;

@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function TicketForm({ onSuccess }: Props) {
-  const [airline, setAirline] = useState<AirlineKey>('ozhyo');
+  const [airline, setAirline] = useState<AirlineKey>('uzairways');
   const [biletRaqam, setBiletRaqam] = useState('');
   const [yolovchi, setYolovchi] = useState('');
   const [passengerCount, setPassengerCount] = useState(1);

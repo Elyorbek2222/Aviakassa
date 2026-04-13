@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function InkassatsiyaForm({ onSuccess }: Props) {
-  const [airline, setAirline] = useState<AirlineKey>('ozhyo');
+  const [airline, setAirline] = useState<AirlineKey>('uzairways');
   const [summa, setSumma] = useState<number | ''>('');
   const [izoh, setIzoh] = useState('');
   const [loading, setLoading] = useState(false);
