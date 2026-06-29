@@ -51,7 +51,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   buxgalter: 'Buxgalter',
 };
 
-export default function Sidebar() {
+export default function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -79,6 +79,7 @@ export default function Sidebar() {
 
   return (
     <aside
+      className={`app-sidebar${open ? ' open' : ''}`}
       style={{
         width: 240,
         backgroundColor: '#111815',
@@ -87,7 +88,7 @@ export default function Sidebar() {
         flexDirection: 'column',
         padding: '20px 12px',
         minHeight: '100vh',
-        position: 'relative',
+        flexShrink: 0,
       }}
     >
       {/* Logo */}
@@ -136,6 +137,7 @@ export default function Sidebar() {
             <a
               key={item.href}
               href={item.href}
+              onClick={onClose}
               onMouseEnter={() => setHoveredItem(item.href)}
               onMouseLeave={() => setHoveredItem(null)}
               style={{

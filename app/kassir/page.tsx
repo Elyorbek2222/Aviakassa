@@ -432,8 +432,8 @@ export default function FinansistPage() {
             {payments.length === 0 ? (
               <div style={{ color: '#4A5C50', textAlign: 'center', padding: '24px 0', fontSize: 13 }}>Bugun prixod yo&apos;q</div>
             ) : (
-              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{ maxHeight: 360, overflowY: 'auto', overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 380 }}>
                   <thead>
                     <tr>
                       <th style={tableHeaderStyle}>Bilet</th>

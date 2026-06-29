@@ -315,8 +315,8 @@ export default function BegzodPage() {
             {tickets.length === 0 ? (
               <div style={{ color: '#4A5C50', textAlign: 'center', padding: 20, fontSize: 14 }}>Bu davrda bilet yo&apos;q</div>
             ) : (
-              <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{ maxHeight: 380, overflowY: 'auto', overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 440 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #1E2E24' }}>
                       <th style={th}>Sana</th>

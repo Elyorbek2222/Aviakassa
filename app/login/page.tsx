@@ -80,6 +80,8 @@ export default function LoginPage() {
         backgroundColor: '#0A0F0D',
         position: 'relative',
         overflow: 'hidden',
+        padding: 20,
+        boxSizing: 'border-box',
       }}
     >
       {/* Background dot grid */}
@@ -109,8 +111,9 @@ export default function LoginPage() {
       {/* Card */}
       <div
         style={{
-          width: 420,
-          padding: '44px 40px',
+          width: '100%',
+          maxWidth: 420,
+          padding: '40px 32px',
           borderRadius: 20,
           backgroundColor: '#141F19',
           border: '1px solid #1E2E24',
