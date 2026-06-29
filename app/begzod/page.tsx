@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { Plane, FileText } from 'lucide-react';
+import { Plane, FileText, Wallet, CheckCircle2, AlertTriangle, Target } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
 import { AIRLINE_LABELS, type AirlineKey } from '@/types/avia';
+import PeriodFilter from '@/components/avia/PeriodFilter';
+import { periodRange, periodLabel } from '@/lib/period';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -198,137 +200,161 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+interface AgentTicket { id: string; sana: string; biletRaqam: string; yolovchi: string; sotishNarxi: number; airlineName: string; }
+interface DebtRow { biletRaqam: string; qarz: number; tolangan: number; }
+
 export default function BegzodPage() {
+  const [period, setPeriod] = useState('today');
   const { data: authData } = useSWR('/api/avia/auth', fetcher);
   const agentName = authData?.user?.name || 'Kassir-Agent';
 
+  const { from, to } = periodRange(period);
+  const dateQs = `${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`;
+  const agentEnc = encodeURIComponent(agentName);
+
   const { data: ticketsData, mutate: mutateTickets } = useSWR(
-    `/api/avia/tickets?agent=${encodeURIComponent(agentName)}`,
+    `/api/avia/tickets?agent=${agentEnc}${dateQs}`,
     fetcher,
     { refreshInterval: 60000, revalidateOnFocus: true }
   );
-  const { data: reportsData } = useSWR('/api/avia/reports', fetcher, { refreshInterval: 60000 });
+  const { data: reportsData, mutate: mutateReports } = useSWR(
+    `/api/avia/reports?agent=${agentEnc}${dateQs}`,
+    fetcher,
+    { refreshInterval: 60000 }
+  );
 
-  const tickets = ticketsData?.tickets || [];
-  const today = new Date().toISOString().split('T')[0];
-  const bugunBiletlar = tickets.filter((t: { sana: string }) => t.sana === today).length;
-  const jamiSotuv = tickets.reduce((s: number, t: { sotishNarxi: number }) => s + t.sotishNarxi, 0);
-  const debts = reportsData?.debts || [];
+  const tickets: AgentTicket[] = ticketsData?.tickets || [];
+  const debts: DebtRow[] = reportsData?.debts || [];
+
+  // bilet raqami -> qarz/to'langan
+  const debtMap = new Map<string, DebtRow>();
+  for (const d of debts) debtMap.set(d.biletRaqam, d);
+
+  const jamiBiletlar = tickets.length;
+  const jamiSotuv = tickets.reduce((s, t) => s + t.sotishNarxi, 0);
+  const jamiQarz = debts.reduce((s, d) => s + d.qarz, 0);
+  const jamiTolangan = tickets.reduce((s, t) => {
+    const d = debtMap.get(t.biletRaqam);
+    return s + (d ? d.tolangan : t.sotishNarxi);
+  }, 0);
+  const qarzli = debts.length;
+  const yopilgan = Math.max(0, jamiBiletlar - qarzli);
+  const progress = jamiBiletlar > 0 ? Math.round((yopilgan / jamiBiletlar) * 100) : 100;
+
+  const refresh = () => { mutateTickets(); mutateReports(); };
+
+  const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 };
 
   return (
     <div>
-      <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>
-        Aviakassir — Bilet Yozish
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Aviakassir — Bilet Yozish</h1>
+          <div style={{ color: '#4A5C50', fontSize: 12, marginTop: 4 }}>Davr: {periodLabel(period)}</div>
+        </div>
+        <PeriodFilter value={period} onChange={setPeriod} />
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         {/* Left: Form */}
-        <TicketForm onSuccess={() => mutateTickets()} />
+        <TicketForm onSuccess={refresh} />
 
-        {/* Right: KPI + Table + Debts */}
+        {/* Right: KPI + Goal + Tickets */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Mini KPI */}
+          {/* KPI cards */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div
-              style={{
-                backgroundColor: '#141F19',
-                border: '1px solid #1E2E24',
-                borderRadius: 12,
-                padding: 16,
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Bugun Biletlar</div>
-              <div style={{ color: '#fff', fontSize: 24, fontWeight: 700 }}>{bugunBiletlar}</div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Biletlar</div>
+              <div style={{ color: '#fff', fontSize: 24, fontWeight: 700 }}>{jamiBiletlar}</div>
             </div>
-            <div
-              style={{
-                backgroundColor: '#141F19',
-                border: '1px solid #1E2E24',
-                borderRadius: 12,
-                padding: 16,
-                textAlign: 'center',
-              }}
-            >
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
               <div style={{ color: '#8A9A8F', fontSize: 12 }}>Jami Sotuv</div>
-              <div style={{ color: '#7CFF4F', fontSize: 24, fontWeight: 700 }}>{formatMoney(jamiSotuv)}</div>
+              <div style={{ color: '#7CFF4F', fontSize: 22, fontWeight: 700 }}>{formatMoney(jamiSotuv)}</div>
+            </div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Wallet size={18} style={{ color: '#2CA5E0', flexShrink: 0 }} />
+              <div>
+                <div style={{ color: '#8A9A8F', fontSize: 11 }}>To&apos;langan</div>
+                <div style={{ color: '#2CA5E0', fontSize: 17, fontWeight: 700 }}>{formatMoney(jamiTolangan)}</div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <AlertTriangle size={18} style={{ color: jamiQarz > 0 ? '#FF4444' : '#7CFF4F', flexShrink: 0 }} />
+              <div>
+                <div style={{ color: '#8A9A8F', fontSize: 11 }}>Qarz</div>
+                <div style={{ color: jamiQarz > 0 ? '#FF4444' : '#7CFF4F', fontSize: 17, fontWeight: 700 }}>{formatMoney(jamiQarz)}</div>
+              </div>
             </div>
           </div>
 
-          {/* My Tickets Table */}
-          <div
-            style={{
-              backgroundColor: '#141F19',
-              border: '1px solid #1E2E24',
-              borderRadius: 12,
-              padding: 20,
-            }}
-          >
+          {/* Goal: close all tickets */}
+          <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 18, borderTop: `2px solid ${progress === 100 ? '#7CFF4F' : '#F5A623'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#fff', fontSize: 14, fontWeight: 700 }}>
+                <Target size={16} style={{ color: progress === 100 ? '#7CFF4F' : '#F5A623' }} />
+                Maqsad: qarzlarni 100% yopish
+              </div>
+              <div style={{ color: progress === 100 ? '#7CFF4F' : '#F5A623', fontSize: 15, fontWeight: 800 }}>
+                {yopilgan}/{jamiBiletlar} · {progress}%
+              </div>
+            </div>
+            <div style={{ height: 8, borderRadius: 5, backgroundColor: '#0A0F0D', overflow: 'hidden' }}>
+              <div style={{ width: `${progress}%`, height: '100%', backgroundColor: progress === 100 ? '#7CFF4F' : '#F5A623', transition: 'width 0.3s ease' }} />
+            </div>
+            <div style={{ color: '#4A5C50', fontSize: 11, marginTop: 8 }}>
+              {qarzli > 0 ? `${qarzli} ta biletda qarz qolgan` : 'Hamma biletlar yopilgan ✓'}
+            </div>
+          </div>
+
+          {/* My Tickets with status */}
+          <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 20 }}>
             <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Plane size={18} style={{ color: '#F5A623' }} />
               O&apos;z Biletlarim
             </h3>
             {tickets.length === 0 ? (
-              <div style={{ color: '#4A5C50', textAlign: 'center', padding: 20, fontSize: 14 }}>
-                Hozircha bilet yo&apos;q
-              </div>
+              <div style={{ color: '#4A5C50', textAlign: 'center', padding: 20, fontSize: 14 }}>Bu davrda bilet yo&apos;q</div>
             ) : (
-              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+              <div style={{ maxHeight: 380, overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #1E2E24' }}>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Sana</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Bilet</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Yo&apos;lovchi</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Narx</th>
+                      <th style={th}>Sana</th>
+                      <th style={th}>Bilet</th>
+                      <th style={th}>Yo&apos;lovchi</th>
+                      <th style={{ ...th, textAlign: 'right' }}>Narx</th>
+                      <th style={{ ...th, textAlign: 'right' }}>Holat</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tickets.slice(-10).reverse().map((t: { id: string; sana: string; biletRaqam: string; yolovchi: string; sotishNarxi: number }) => (
-                      <tr key={t.id} style={{ borderBottom: '1px solid #1E2E24' }}>
-                        <td style={{ padding: '8px 10px', color: '#8A9A8F', fontSize: 13 }}>{t.sana}</td>
-                        <td style={{ padding: '8px 10px', color: '#fff', fontSize: 13 }}>{t.biletRaqam}</td>
-                        <td style={{ padding: '8px 10px', color: '#fff', fontSize: 13 }}>{t.yolovchi}</td>
-                        <td style={{ padding: '8px 10px', color: '#7CFF4F', fontSize: 13, textAlign: 'right' }}>{formatMoney(t.sotishNarxi)}</td>
-                      </tr>
-                    ))}
+                    {tickets.slice().reverse().map((t) => {
+                      const d = debtMap.get(t.biletRaqam);
+                      const isQarzli = !!d && d.qarz > 0;
+                      return (
+                        <tr key={t.id} style={{ borderBottom: '1px solid #1E2E24' }}>
+                          <td style={{ padding: '8px 10px', color: '#8A9A8F', fontSize: 12 }}>{t.sana}</td>
+                          <td style={{ padding: '8px 10px', color: '#fff', fontSize: 12, fontFamily: 'var(--font-geist-mono)' }}>{t.biletRaqam}</td>
+                          <td style={{ padding: '8px 10px', color: '#fff', fontSize: 13 }}>{t.yolovchi}</td>
+                          <td style={{ padding: '8px 10px', color: '#7CFF4F', fontSize: 13, textAlign: 'right' }}>{formatMoney(t.sotishNarxi)}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                            {isQarzli ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: '#FF444418', color: '#FF4444', border: '1px solid #FF444430' }}>
+                                <AlertTriangle size={10} /> {formatMoney(d!.qarz)}
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: '#7CFF4F18', color: '#7CFF4F', border: '1px solid #7CFF4F30' }}>
+                                <CheckCircle2 size={10} /> Yopilgan
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
-
-          {/* Debt Section */}
-          {debts.length > 0 && (
-            <div
-              style={{
-                backgroundColor: '#141F19',
-                border: '1px solid #1E2E24',
-                borderRadius: 12,
-                padding: 20,
-              }}
-            >
-              <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
-                Qarz Holati
-              </h3>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #1E2E24' }}>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Mijoz</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Qarz</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {debts.slice(0, 10).map((d: { biletId: string; mijozIsmi: string; qarz: number }) => (
-                    <tr key={d.biletId} style={{ borderBottom: '1px solid #1E2E24' }}>
-                      <td style={{ padding: '8px 10px', color: '#fff', fontSize: 13 }}>{d.mijozIsmi}</td>
-                      <td style={{ padding: '8px 10px', color: '#FF3B30', fontSize: 13, textAlign: 'right', fontWeight: 600 }}>{formatMoney(d.qarz)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
     </div>

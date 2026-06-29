@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
       airlineMap.set(t.airline, existing);
     }
     for (const i of inkassatsiya) {
+      if (i.turi === 'kassa') continue; // kunlik kassa topshirish — partnyor qarziga aloqasi yo'q
       const existing = airlineMap.get(i.airline) || { biletlarSumma: 0, inkassatsiya: 0, biletlar: 0 };
       existing.inkassatsiya += i.summa;
       airlineMap.set(i.airline, existing);

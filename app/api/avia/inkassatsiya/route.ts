@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInkassatsiya, addInkassatsiya } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
-import { AIRLINE_LABELS, type Inkassatsiya, type AirlineKey } from '@/types/avia';
+import { AIRLINE_LABELS, type Inkassatsiya, type AirlineKey, type InkassatsiyaTuri } from '@/types/avia';
 
 // GET: return all inkassatsiya
 export async function GET() {
@@ -19,8 +19,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const today = new Date().toISOString().split('T')[0];
 
+    const turi: InkassatsiyaTuri = body.turi === 'kassa' ? 'kassa' : 'aviakompaniya';
     const airlineKey = body.airline as AirlineKey;
-    const airlineName = AIRLINE_LABELS[airlineKey] || body.airlineName || '';
+    const airlineName = turi === 'kassa'
+      ? (body.airlineName || 'Kassa topshirish')
+      : (AIRLINE_LABELS[airlineKey] || body.airlineName || '');
 
     const item: Inkassatsiya = {
       id: `INK-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -29,6 +32,7 @@ export async function POST(request: NextRequest) {
       airlineName,
       summa: Number(body.summa) || 0,
       izoh: body.izoh || '',
+      turi,
     };
 
     const items = addInkassatsiya(item);

@@ -48,6 +48,8 @@ export interface AviaPayment {
 
 // ===== Inkassatsiya =====
 
+export type InkassatsiyaTuri = 'aviakompaniya' | 'kassa';
+
 export interface Inkassatsiya {
   id: string;
   sana: string; // YYYY-MM-DD
@@ -55,6 +57,7 @@ export interface Inkassatsiya {
   airlineName: string;
   summa: number; // UZS
   izoh?: string;
+  turi?: InkassatsiyaTuri; // 'aviakompaniya' (default) yoki 'kassa' (kunlik kassa topshirish)
 }
 
 // ===== Rasxod (Kassir chiqimlari) =====

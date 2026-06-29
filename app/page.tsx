@@ -16,6 +16,9 @@ import {
   Bar,
 } from 'recharts';
 import { useState } from 'react';
+import PeriodFilter from '@/components/avia/PeriodFilter';
+import AviaMonthlyChart from '@/components/avia/AviaMonthlyChart';
+import { periodQuery, currentMonthKey, periodLabel } from '@/lib/period';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -121,9 +124,12 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 }
 
 export default function AdminDashboard() {
-  const { data, error, isLoading } = useSWR('/api/avia/reports', fetcher, {
+  const [period, setPeriod] = useState(currentMonthKey());
+  const { data, error, isLoading } = useSWR(`/api/avia/reports${periodQuery(period)}`, fetcher, {
     refreshInterval: 30000,
   });
+  // Oyma-oy infografika uchun butun davr (period'dan mustaqil)
+  const { data: allTimeData } = useSWR('/api/avia/reports', fetcher, { refreshInterval: 60000 });
 
   const [partnerRowHover, setPartnerRowHover] = useState<string | null>(null);
   const [debtRowHover, setDebtRowHover] = useState<string | null>(null);
@@ -177,20 +183,26 @@ export default function AdminDashboard() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
-          Dashboard
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4A5C50', fontSize: 12 }}>
-          <div
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              backgroundColor: '#7CFF4F',
-              boxShadow: '0 0 6px #7CFF4F',
-            }}
-          />
-          Yangilangan: {timeStr}
+        <div>
+          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
+            Dashboard
+          </h1>
+          <div style={{ color: '#4A5C50', fontSize: 12, marginTop: 4 }}>Davr: {periodLabel(period)}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <PeriodFilter value={period} onChange={setPeriod} showToday={false} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4A5C50', fontSize: 12 }}>
+            <div
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: '#7CFF4F',
+                boxShadow: '0 0 6px #7CFF4F',
+              }}
+            />
+            Yangilangan: {timeStr}
+          </div>
         </div>
       </div>
 
@@ -372,6 +384,11 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Oyma-oy infografika */}
+      <div style={{ marginBottom: 14 }}>
+        <AviaMonthlyChart data={allTimeData?.salesTrend || []} />
       </div>
 
       {/* Partner Debts */}

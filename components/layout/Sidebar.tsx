@@ -12,7 +12,7 @@ import {
   Plane,
   LogOut,
   Landmark,
-  MinusCircle,
+  BookOpen,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -28,13 +28,13 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/payments', label: "To'lovlar", icon: <CreditCard size={18} /> },
   { href: '/debts', label: 'Qarzdorlik', icon: <AlertTriangle size={18} /> },
   { href: '/inkassatsiya', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
-  { href: '/rasxod', label: 'Rasxod / Refund', icon: <MinusCircle size={18} /> },
   { href: '/upload', label: 'Excel Yuklash', icon: <Upload size={18} /> },
   { href: '/settings', label: 'Sozlamalar', icon: <Sliders size={18} /> },
   { href: '/begzod', label: 'Bilet Yozish', icon: <FileText size={18} /> },
   { href: '/begzod/debts', label: 'Qarzdorlar', icon: <AlertTriangle size={18} /> },
-  { href: '/kassir', label: 'Prixod', icon: <CreditCard size={18} /> },
+  { href: '/kassir', label: 'Finansist', icon: <CreditCard size={18} /> },
   { href: '/buxgalter', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
+  { href: '/qollanma', label: "Qo'llanma", icon: <BookOpen size={18} /> },
 ];
 
 const ROLE_ACCENT: Record<UserRole, string> = {
