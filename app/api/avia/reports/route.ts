@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings } from '@/lib/avia-storage';
 import type {
-  AviaTicket,
-  AviaPayment,
   AviaKPI,
   AviaSalesPoint,
   AirlineStat,

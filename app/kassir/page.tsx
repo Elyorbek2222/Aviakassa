@@ -295,7 +295,7 @@ export default function FinansistPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="split-2">
         {/* Left: active form */}
         <div style={{
           backgroundColor: '#141F19', border: '1px solid #1E2E24',

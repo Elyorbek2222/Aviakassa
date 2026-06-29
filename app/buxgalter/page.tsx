@@ -138,7 +138,7 @@ export default function BuxgalterPage() {
         Inkassatsiya
       </h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="split-2">
         {/* Left: Form */}
         <InkassatsiyaForm onSuccess={handleSuccess} />
 

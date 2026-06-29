@@ -259,12 +259,8 @@ export default function AdminDashboard() {
 
       {/* Charts Row */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 14,
-          marginBottom: 24,
-        }}
+        className="split-2"
+        style={{ gap: 14, marginBottom: 24 }}
       >
         {/* Sales Trend Chart */}
         <div

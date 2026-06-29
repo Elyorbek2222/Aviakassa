@@ -58,6 +58,46 @@ textarea:focus {
   outline: none;
 }
 
+/* Keyboard focus ring for buttons/links (a11y) */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #7CFF4F;
+  outline-offset: 2px;
+}
+
+/* Responsive 2-column layout: forma | monitoring.
+   Kichik ekranlarda (tablet/telefon) ustma-ust joylashadi. */
+.split-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .split-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Telefon: asosiy padding kichrayadi */
+@media (max-width: 600px) {
+  main {
+    padding: 16px !important;
+  }
+}
+
+/* Reduced-motion: animatsiyalarni o'chirish (a11y) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Animations */
 @keyframes fadeInUp {
   from {

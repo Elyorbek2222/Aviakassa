@@ -255,7 +255,7 @@ export default function BegzodPage() {
         <PeriodFilter value={period} onChange={setPeriod} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="split-2">
         {/* Left: Form */}
         <TicketForm onSuccess={refresh} />
 
