@@ -24,18 +24,24 @@ export async function GET(request: NextRequest) {
     const settings = getSettings();
     let tickets = getTickets();
     let payments = getPayments();
-    const inkassatsiya = getInkassatsiya();
-    const rasxodlar = getRasxodlar();
-    const refundlar = getRefundlar();
+    let inkassatsiya = getInkassatsiya();
+    let rasxodlar = getRasxodlar();
+    let refundlar = getRefundlar();
 
     // Apply date filters
     if (from) {
       tickets = tickets.filter((t) => t.sana >= from);
       payments = payments.filter((p) => p.sana >= from);
+      inkassatsiya = inkassatsiya.filter((i) => i.sana >= from);
+      rasxodlar = rasxodlar.filter((r) => r.sana >= from);
+      refundlar = refundlar.filter((r) => r.sana >= from);
     }
     if (to) {
       tickets = tickets.filter((t) => t.sana <= to);
       payments = payments.filter((p) => p.sana <= to);
+      inkassatsiya = inkassatsiya.filter((i) => i.sana <= to);
+      rasxodlar = rasxodlar.filter((r) => r.sana <= to);
+      refundlar = refundlar.filter((r) => r.sana <= to);
     }
     if (agentFilter) {
       tickets = tickets.filter((t) => t.agent === agentFilter);
@@ -111,6 +117,7 @@ export async function GET(request: NextRequest) {
     }
 
     const debts: DebtRecord[] = [];
+    let settledCount = 0;
     for (const t of tickets) {
       const tolangan = paymentsByTicket.get(t.biletRaqam) || 0;
       const qarz = t.sotishNarxi - tolangan;
@@ -125,6 +132,8 @@ export async function GET(request: NextRequest) {
           airline: t.airline,
           biletId: t.id,
         });
+      } else {
+        settledCount += 1; // to'liq to'langan bilet
       }
     }
 
@@ -185,6 +194,7 @@ export async function GET(request: NextRequest) {
       naqd,
       plastik,
       perechisleniya,
+      settledCount,
     };
 
     return NextResponse.json({

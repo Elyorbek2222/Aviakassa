@@ -101,9 +101,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE: clear all tickets
+// DELETE: clear all tickets (admin only)
 export async function DELETE() {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const user = token ? getSessionFromToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 403 });
+    }
     clearTickets();
     return NextResponse.json({ message: 'Barcha biletlar tozalandi' });
   } catch {

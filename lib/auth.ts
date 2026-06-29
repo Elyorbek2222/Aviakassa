@@ -12,7 +12,7 @@ export interface AuthUser {
 export const SESSION_COOKIE_NAME = 'avia-session';
 
 export const ROLE_PAGES: Record<UserRole, string[]> = {
-  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/upload', '/settings'],
+  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/rasxod', '/upload', '/settings'],
   begzod: ['/begzod', '/begzod/debts'],
   kassir: ['/kassir'],
   buxgalter: ['/buxgalter'],
@@ -27,8 +27,8 @@ export const ROLE_HOME: Record<UserRole, string> = {
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrator',
-  kassir: 'Kassir',
-  begzod: 'Kassir-Agent',
+  kassir: 'Finansist',
+  begzod: 'Aviakassir',
   buxgalter: 'Buxgalter',
 };
 
@@ -36,30 +36,30 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 const USERS: { username: string; password: string; role: UserRole; name: string }[] = [
   {
-    username: process.env.ADMIN_USERNAME || 'admin',
-    password: process.env.ADMIN_PASSWORD || 'admin123',
+    username: process.env.ADMIN_USERNAME ?? '',
+    password: process.env.ADMIN_PASSWORD ?? '',
     role: 'admin',
     name: 'Administrator',
   },
   {
-    username: process.env.KASSIR_USERNAME || 'kassir',
-    password: process.env.KASSIR_PASSWORD || 'kassir123',
+    username: process.env.KASSIR_USERNAME ?? '',
+    password: process.env.KASSIR_PASSWORD ?? '',
     role: 'kassir',
     name: 'Kassir',
   },
   {
-    username: process.env.BEGZOD_USERNAME || 'begzod',
-    password: process.env.BEGZOD_PASSWORD || 'begzod123',
+    username: process.env.BEGZOD_USERNAME ?? '',
+    password: process.env.BEGZOD_PASSWORD ?? '',
     role: 'begzod',
     name: 'Kassir-Agent',
   },
   {
-    username: process.env.BUXGALTER_USERNAME || 'buxgalter',
-    password: process.env.BUXGALTER_PASSWORD || 'buxgalter123',
+    username: process.env.BUXGALTER_USERNAME ?? '',
+    password: process.env.BUXGALTER_PASSWORD ?? '',
     role: 'buxgalter',
     name: 'Buxgalter',
   },
-];
+].filter((u) => u.username && u.password) as { username: string; password: string; role: UserRole; name: string }[];
 
 export function authenticate(username: string, password: string): AuthUser | null {
   const user = USERS.find((u) => u.username === username && u.password === password);
@@ -69,7 +69,12 @@ export function authenticate(username: string, password: string): AuthUser | nul
 
 // ===== Session Token =====
 
-const AUTH_SECRET = process.env.AUTH_SECRET || 'aviakassa-secret-key-2026';
+const AUTH_SECRET = process.env.AUTH_SECRET ?? '';
+if (!AUTH_SECRET && typeof window === 'undefined') {
+  console.warn('[auth] AUTH_SECRET env variable is not set!');
+}
+
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 kun
 
 export function createSessionToken(user: AuthUser): string {
   const payload = JSON.stringify({
@@ -78,6 +83,7 @@ export function createSessionToken(user: AuthUser): string {
     name: user.name,
     secret: AUTH_SECRET,
     ts: Date.now(),
+    exp: Date.now() + SESSION_TTL_MS,
   });
   // Base64 encode with secret prefix for basic tamper detection
   return Buffer.from(`${AUTH_SECRET}:${payload}`).toString('base64');
@@ -97,6 +103,7 @@ export function getSessionFromToken(token: string): AuthUser | null {
 
     if (!payload.username || !payload.role || !payload.name) return null;
     if (payload.secret !== AUTH_SECRET) return null;
+    if (payload.exp && Date.now() > payload.exp) return null;
 
     return {
       username: payload.username,

@@ -9,7 +9,8 @@ interface Props {
 }
 
 export default function AviaDebtTable({ debts }: Props) {
-  const totalQarz = debts.reduce((sum, d) => sum + d.qarz, 0);
+  const safeDebts = debts ?? [];
+  const totalQarz = safeDebts.reduce((sum, d) => sum + d.qarz, 0);
 
   const thStyle: React.CSSProperties = {
     padding: '10px 14px',
@@ -76,8 +77,8 @@ export default function AviaDebtTable({ debts }: Props) {
             </tr>
           </thead>
           <tbody>
-            {debts.map((d) => (
-              <tr key={d.biletId}>
+            {safeDebts.map((d, idx) => (
+              <tr key={d.biletId || `debt-${idx}`}>
                 <td style={{ ...tdStyle, color: '#fff', fontWeight: 500 }}>{d.mijozIsmi}</td>
                 <td style={{ ...tdStyle, color: '#fff', fontFamily: 'monospace' }}>{d.biletRaqam}</td>
                 <td style={{ ...tdStyle, color: '#8A9A8F' }}>
@@ -96,7 +97,7 @@ export default function AviaDebtTable({ debts }: Props) {
                 </td>
               </tr>
             ))}
-            {debts.length === 0 && (
+            {safeDebts.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ ...tdStyle, color: '#4A5C50', textAlign: 'center' }}>
                   Qarzdorlik yo&apos;q

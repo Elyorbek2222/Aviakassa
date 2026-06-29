@@ -123,6 +123,7 @@ export interface AviaKPI {
   naqd: number;
   plastik: number;
   perechisleniya: number;
+  settledCount: number; // to'liq to'langan biletlar soni (qarz <= 0)
 }
 
 export interface AviaSalesPoint {

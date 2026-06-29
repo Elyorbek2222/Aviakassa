@@ -15,16 +15,18 @@ export default function AviaTicketsTable({ tickets }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('sana');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
+  const safeTickets = tickets ?? [];
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    let result = tickets;
+    let result = safeTickets;
     if (q) {
-      result = tickets.filter(
+      result = safeTickets.filter(
         (t) =>
-          t.biletRaqam.toLowerCase().includes(q) ||
-          t.yolovchi.toLowerCase().includes(q) ||
-          t.airlineName.toLowerCase().includes(q) ||
-          t.agent.toLowerCase().includes(q)
+          (t.biletRaqam ?? '').toLowerCase().includes(q) ||
+          (t.yolovchi ?? '').toLowerCase().includes(q) ||
+          (t.airlineName ?? '').toLowerCase().includes(q) ||
+          (t.agent ?? '').toLowerCase().includes(q)
       );
     }
     result = [...result].sort((a, b) => {
@@ -33,12 +35,12 @@ export default function AviaTicketsTable({ tickets }: Props) {
       if (typeof aVal === 'number' && typeof bVal === 'number') {
         return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
       }
-      return sortDir === 'asc'
-        ? String(aVal).localeCompare(String(bVal))
-        : String(bVal).localeCompare(String(aVal));
+      const aStr = String(aVal ?? '');
+      const bStr = String(bVal ?? '');
+      return sortDir === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
     });
     return result;
-  }, [tickets, search, sortKey, sortDir]);
+  }, [safeTickets, search, sortKey, sortDir]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {

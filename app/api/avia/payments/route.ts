@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getPayments, addSinglePayment, clearPayments } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
 import type { AviaPayment } from '@/types/avia';
@@ -41,6 +43,13 @@ export async function GET(request: NextRequest) {
 // POST: add single payment from form
 export async function POST(request: NextRequest) {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const user = token ? getSessionFromToken(token) : null;
+    if (!user) {
+      return NextResponse.json({ error: 'Avtorizatsiya talab qilinadi' }, { status: 401 });
+    }
+
     const body = await request.json();
     const today = new Date().toISOString().split('T')[0];
 
@@ -79,9 +88,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE: clear all payments
+// DELETE: clear all payments (admin only)
 export async function DELETE() {
   try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const user = token ? getSessionFromToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 403 });
+    }
     clearPayments();
     return NextResponse.json({ message: 'Barcha to\'lovlar tozalandi' });
   } catch {

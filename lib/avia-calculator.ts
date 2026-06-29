@@ -62,6 +62,9 @@ export function calculateKPI(
   // Payment breakdown
   const breakdown = calculatePaymentBreakdown(payments);
 
+  // To'liq to'langan biletlar soni (qarz <= 0)
+  const settledCount = jamiBiletlar - calculateDebts(tickets, payments).length;
+
   return {
     jamiBiletlar,
     bugunBiletlar,
@@ -72,6 +75,7 @@ export function calculateKPI(
     naqd: breakdown.naqd,
     plastik: breakdown.plastik,
     perechisleniya: breakdown.perechisleniya,
+    settledCount,
   };
 }
 

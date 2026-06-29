@@ -109,8 +109,8 @@ function InkassatsiyaForm({ onSuccess }: { onSuccess: () => void }) {
 }
 
 export default function BuxgalterPage() {
-  const { data: reportsData, mutate: mutateReports } = useSWR('/api/avia/reports', fetcher, { refreshInterval: 30000 });
-  const { data: inkData, mutate: mutateInk } = useSWR('/api/avia/inkassatsiya', fetcher, { refreshInterval: 15000 });
+  const { data: reportsData, mutate: mutateReports, isLoading: reportsLoading, error: reportsError } = useSWR('/api/avia/reports', fetcher, { refreshInterval: 60000 });
+  const { data: inkData, mutate: mutateInk, isLoading: inkLoading } = useSWR('/api/avia/inkassatsiya', fetcher, { refreshInterval: 60000 });
 
   const partnerDebts = reportsData?.partnerDebts || [];
   const inkassatsiya = inkData?.inkassatsiya || [];
@@ -120,9 +120,21 @@ export default function BuxgalterPage() {
     mutateInk();
   };
 
+  if (reportsLoading || inkLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 40, color: '#4A5C50' }}>
+        <div style={{ width: 18, height: 18, border: '2px solid #1E2E24', borderTopColor: '#9B59B6', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        Yuklanmoqda...
+      </div>
+    );
+  }
+  if (reportsError) {
+    return <div style={{ color: '#FF3B30', padding: 40 }}>Ma&apos;lumotlarni yuklashda xatolik</div>;
+  }
+
   return (
     <div>
-      <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>
+      <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 800, marginBottom: 24, letterSpacing: '-0.5px' }}>
         Inkassatsiya
       </h1>
 

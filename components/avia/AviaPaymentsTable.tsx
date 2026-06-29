@@ -14,6 +14,7 @@ const PAYMENT_BADGE: Record<string, { label: string; color: string }> = {
 };
 
 export default function AviaPaymentsTable({ payments }: Props) {
+  const safePayments = payments ?? [];
   const thStyle: React.CSSProperties = {
     padding: '10px 14px',
     textAlign: 'left',
@@ -56,7 +57,7 @@ export default function AviaPaymentsTable({ payments }: Props) {
             </tr>
           </thead>
           <tbody>
-            {payments.map((p) => {
+            {safePayments.map((p) => {
               const badge = PAYMENT_BADGE[p.tolovTuri] || { label: p.tolovTuri, color: '#8A9A8F' };
               const summaDisplay =
                 p.valyuta === 'usd' && p.summAsl && p.kurs
@@ -95,7 +96,7 @@ export default function AviaPaymentsTable({ payments }: Props) {
                 </tr>
               );
             })}
-            {payments.length === 0 && (
+            {safePayments.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ ...tdStyle, color: '#4A5C50', textAlign: 'center' }}>
                   Ma&apos;lumot yo&apos;q

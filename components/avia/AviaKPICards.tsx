@@ -17,6 +17,7 @@ interface KPICardDef {
 }
 
 export default function AviaKPICards({ kpi }: Props) {
+  if (!kpi) return null;
   const cards: KPICardDef[] = [
     {
       label: 'Jami biletlar',

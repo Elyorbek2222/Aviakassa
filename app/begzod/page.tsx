@@ -199,12 +199,15 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
 }
 
 export default function BegzodPage() {
+  const { data: authData } = useSWR('/api/avia/auth', fetcher);
+  const agentName = authData?.user?.name || 'Kassir-Agent';
+
   const { data: ticketsData, mutate: mutateTickets } = useSWR(
-    '/api/avia/tickets?agent=Kassir-Agent',
+    `/api/avia/tickets?agent=${encodeURIComponent(agentName)}`,
     fetcher,
-    { refreshInterval: 15000 }
+    { refreshInterval: 60000, revalidateOnFocus: true }
   );
-  const { data: reportsData } = useSWR('/api/avia/reports', fetcher, { refreshInterval: 30000 });
+  const { data: reportsData } = useSWR('/api/avia/reports', fetcher, { refreshInterval: 60000 });
 
   const tickets = ticketsData?.tickets || [];
   const today = new Date().toISOString().split('T')[0];
@@ -215,7 +218,7 @@ export default function BegzodPage() {
   return (
     <div>
       <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>
-        Bilet Yozish
+        Aviakassir — Bilet Yozish
       </h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
