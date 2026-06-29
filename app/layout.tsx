@@ -14,8 +14,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AviaKassa - Bilet Hisobi",
-  description: "Aviabilet hisobi va boshqaruv tizimi",
+  metadataBase: new URL("https://semavia.vercel.app"),
+  title: {
+    default: "SEM AviaKassa — Bilet Hisobi",
+    template: "%s · SEM AviaKassa",
+  },
+  description: "Aviabilet hisobi va boshqaruv tizimi — SEM Avia",
+  applicationName: "SEM AviaKassa",
+  openGraph: {
+    title: "SEM AviaKassa — Bilet Hisobi",
+    description: "Aviabilet hisobi va boshqaruv tizimi",
+    siteName: "SEM AviaKassa",
+    url: "https://semavia.vercel.app",
+    locale: "uz_UZ",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SEM AviaKassa — Bilet Hisobi",
+    description: "Aviabilet hisobi va boshqaruv tizimi",
+  },
 };
 
 export default function RootLayout({
