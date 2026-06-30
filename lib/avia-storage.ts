@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { getSupabase } from './supabase';
 import type {
   AviaTicket,
   AviaPayment,
@@ -8,34 +7,27 @@ import type {
   Refund,
   AviaSettings,
   AirlineConfig,
+  SverkaData,
 } from '../types/avia';
 
-// ===== Storage directory =====
+// ===== Generic jsonb hujjat yordamchilari =====
 
-const DATA_DIR = path.join(process.cwd(), 'data', 'avia');
-
-function ensureDir(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+async function selectAll<T>(table: string): Promise<T[]> {
+  const { data, error } = await getSupabase().from(table).select('doc');
+  if (error) throw error;
+  return (data || []).map((r: { doc: T }) => r.doc);
 }
 
-function readJSON<T>(filename: string, fallback: T): T {
-  ensureDir();
-  const filePath = path.join(DATA_DIR, filename);
-  if (!fs.existsSync(filePath)) return fallback;
-  try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+async function upsertDocs<T extends { id: string }>(table: string, items: T[]): Promise<void> {
+  if (items.length === 0) return;
+  const rows = items.map((it) => ({ id: it.id, doc: it }));
+  const { error } = await getSupabase().from(table).upsert(rows, { onConflict: 'id' });
+  if (error) throw error;
 }
 
-function writeJSON<T>(filename: string, data: T): void {
-  ensureDir();
-  const filePath = path.join(DATA_DIR, filename);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+async function deleteAll(table: string): Promise<void> {
+  const { error } = await getSupabase().from(table).delete().neq('id', '');
+  if (error) throw error;
 }
 
 // ===== Default Settings =====
@@ -53,92 +45,107 @@ export const DEFAULT_SETTINGS: AviaSettings = {
 
 // ===== Tickets =====
 
-export function getTickets(): AviaTicket[] {
-  return readJSON<AviaTicket[]>('tickets.json', []);
+export async function getTickets(): Promise<AviaTicket[]> {
+  return selectAll<AviaTicket>('tickets');
 }
 
-export function addTickets(tickets: AviaTicket[]): AviaTicket[] {
-  const existing = getTickets();
-  const updated = [...existing, ...tickets];
-  writeJSON('tickets.json', updated);
-  return updated;
+export async function addTickets(tickets: AviaTicket[]): Promise<AviaTicket[]> {
+  await upsertDocs('tickets', tickets);
+  return getTickets();
 }
 
-export function addSingleTicket(ticket: AviaTicket): AviaTicket[] {
+export async function addSingleTicket(ticket: AviaTicket): Promise<AviaTicket[]> {
   return addTickets([ticket]);
 }
 
-export function clearTickets(): void {
-  writeJSON('tickets.json', []);
+export async function clearTickets(): Promise<void> {
+  await deleteAll('tickets');
 }
 
 // ===== Payments =====
 
-export function getPayments(): AviaPayment[] {
-  return readJSON<AviaPayment[]>('payments.json', []);
+export async function getPayments(): Promise<AviaPayment[]> {
+  return selectAll<AviaPayment>('payments');
 }
 
-export function addPayments(payments: AviaPayment[]): AviaPayment[] {
-  const existing = getPayments();
-  const updated = [...existing, ...payments];
-  writeJSON('payments.json', updated);
-  return updated;
+export async function addPayments(payments: AviaPayment[]): Promise<AviaPayment[]> {
+  await upsertDocs('payments', payments);
+  return getPayments();
 }
 
-export function addSinglePayment(payment: AviaPayment): AviaPayment[] {
+export async function addSinglePayment(payment: AviaPayment): Promise<AviaPayment[]> {
   return addPayments([payment]);
 }
 
-export function clearPayments(): void {
-  writeJSON('payments.json', []);
+export async function clearPayments(): Promise<void> {
+  await deleteAll('payments');
 }
 
 // ===== Inkassatsiya =====
 
-export function getInkassatsiya(): Inkassatsiya[] {
-  return readJSON<Inkassatsiya[]>('inkassatsiya.json', []);
+export async function getInkassatsiya(): Promise<Inkassatsiya[]> {
+  return selectAll<Inkassatsiya>('inkassatsiya');
 }
 
-export function addInkassatsiya(item: Inkassatsiya): Inkassatsiya[] {
-  const existing = getInkassatsiya();
-  const updated = [...existing, item];
-  writeJSON('inkassatsiya.json', updated);
-  return updated;
+export async function addInkassatsiya(item: Inkassatsiya): Promise<Inkassatsiya[]> {
+  await upsertDocs('inkassatsiya', [item]);
+  return getInkassatsiya();
 }
 
 // ===== Rasxod =====
 
-export function getRasxodlar(): Rasxod[] {
-  return readJSON<Rasxod[]>('rasxod.json', []);
+export async function getRasxodlar(): Promise<Rasxod[]> {
+  return selectAll<Rasxod>('rasxod');
 }
 
-export function addRasxod(item: Rasxod): Rasxod[] {
-  const existing = getRasxodlar();
-  const updated = [...existing, item];
-  writeJSON('rasxod.json', updated);
-  return updated;
+export async function addRasxod(item: Rasxod): Promise<Rasxod[]> {
+  await upsertDocs('rasxod', [item]);
+  return getRasxodlar();
 }
 
 // ===== Refund =====
 
-export function getRefundlar(): Refund[] {
-  return readJSON<Refund[]>('refund.json', []);
+export async function getRefundlar(): Promise<Refund[]> {
+  return selectAll<Refund>('refund');
 }
 
-export function addRefund(item: Refund): Refund[] {
-  const existing = getRefundlar();
-  const updated = [...existing, item];
-  writeJSON('refund.json', updated);
-  return updated;
+export async function addRefund(item: Refund): Promise<Refund[]> {
+  await upsertDocs('refund', [item]);
+  return getRefundlar();
+}
+
+// ===== Oylik sverka (otchot) =====
+
+const EMPTY_SVERKA: SverkaData = {
+  meta: { oy: '', manbalar: [], sverka: {
+    begCount: 0, srcCount: 0, match: 0, onlyBeg: 0, noTicket: 0,
+    farq: 0, reissue: 0, nameBad: 0, srcOnly: 0, begSum: 0, srcSum: 0,
+  } },
+  yozuvlar: [],
+};
+
+// Aprel 2026 sverka hisoboti (Begzod ledger ↔ aviakompaniya manbalari)
+export async function getAprelSverka(): Promise<SverkaData> {
+  const { data, error } = await getSupabase().from('otchot').select('doc').eq('id', 'aprel-2026').maybeSingle();
+  if (error) throw error;
+  return (data?.doc as SverkaData) || EMPTY_SVERKA;
+}
+
+export async function saveAprelSverka(d: SverkaData): Promise<void> {
+  const { error } = await getSupabase().from('otchot').upsert({ id: 'aprel-2026', doc: d }, { onConflict: 'id' });
+  if (error) throw error;
 }
 
 // ===== Settings =====
 
-export function getSettings(): AviaSettings {
-  return readJSON<AviaSettings>('settings.json', DEFAULT_SETTINGS);
+export async function getSettings(): Promise<AviaSettings> {
+  const { data, error } = await getSupabase().from('settings').select('doc').eq('id', 'default').maybeSingle();
+  if (error) throw error;
+  return (data?.doc as AviaSettings) || DEFAULT_SETTINGS;
 }
 
-export function updateSettings(settings: AviaSettings): AviaSettings {
-  writeJSON('settings.json', settings);
+export async function updateSettings(settings: AviaSettings): Promise<AviaSettings> {
+  const { error } = await getSupabase().from('settings').upsert({ id: 'default', doc: settings }, { onConflict: 'id' });
+  if (error) throw error;
   return settings;
 }

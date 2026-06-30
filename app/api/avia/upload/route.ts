@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         )
         const tickets = parseTicketsExcel(biletBuffer)
         if (tickets.length > 0) {
-          addTickets(tickets)
+          await addTickets(tickets)
           results.push(`${tickets.length} ta bilet`)
         }
       }
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         )
         const payments = parsePaymentsExcel(tolovBuffer)
         if (payments.length > 0) {
-          addPayments(payments)
+          await addPayments(payments)
           results.push(`${payments.length} ta to'lov`)
         }
       }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         )
         const items = parseInkassatsiyaExcel(inkBuffer)
         if (items.length > 0) {
-          for (const item of items) addInkassatsiya(item)
+          for (const item of items) await addInkassatsiya(item)
           results.push(`${items.length} ta inkassatsiya`)
         }
       }
@@ -76,19 +76,19 @@ export async function POST(request: NextRequest) {
     // Alohida sheet yuklash (eski usul ham ishlaydi)
     if (type === 'tickets') {
       const tickets = parseTicketsExcel(buffer)
-      addTickets(tickets)
+      await addTickets(tickets)
       return NextResponse.json({ message: `${tickets.length} ta bilet yuklandi`, count: tickets.length })
     }
 
     if (type === 'payments') {
       const payments = parsePaymentsExcel(buffer)
-      addPayments(payments)
+      await addPayments(payments)
       return NextResponse.json({ message: `${payments.length} ta to'lov yuklandi`, count: payments.length })
     }
 
     if (type === 'inkassatsiya') {
       const items = parseInkassatsiyaExcel(buffer)
-      for (const item of items) addInkassatsiya(item)
+      for (const item of items) await addInkassatsiya(item)
       return NextResponse.json({ message: `${items.length} ta inkassatsiya yuklandi`, count: items.length })
     }
 

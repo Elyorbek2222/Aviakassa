@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
       const buffer = csvToBuffer(biletCSV)
       const tickets = parseTicketsExcel(buffer)
       if (tickets.length > 0) {
-        if (fresh) clearTickets()
-        addTickets(tickets)
+        if (fresh) await clearTickets()
+        await addTickets(tickets)
         results.push(`${tickets.length} ta bilet`)
       }
     }
@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
       const buffer = csvToBuffer(tolovCSV)
       const payments = parsePaymentsExcel(buffer)
       if (payments.length > 0) {
-        if (fresh) clearPayments()
-        addPayments(payments)
+        if (fresh) await clearPayments()
+        await addPayments(payments)
         results.push(`${payments.length} ta to'lov`)
       }
     }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       const buffer = csvToBuffer(inkCSV)
       const items = parseInkassatsiyaExcel(buffer)
       if (items.length > 0) {
-        for (const item of items) addInkassatsiya(item)
+        for (const item of items) await addInkassatsiya(item)
         results.push(`${items.length} ta inkassatsiya`)
       }
     }

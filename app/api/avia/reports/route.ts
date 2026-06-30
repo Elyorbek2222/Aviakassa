@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
     const agentFilter = searchParams.get('agent');
     const airlineFilter = searchParams.get('airline');
 
-    const settings = getSettings();
-    let tickets = getTickets();
-    let payments = getPayments();
-    let inkassatsiya = getInkassatsiya();
-    let rasxodlar = getRasxodlar();
-    let refundlar = getRefundlar();
+    const settings = await getSettings();
+    let tickets = await getTickets();
+    let payments = await getPayments();
+    let inkassatsiya = await getInkassatsiya();
+    let rasxodlar = await getRasxodlar();
+    let refundlar = await getRefundlar();
 
     // Apply date filters
     if (from) {

@@ -6,7 +6,7 @@ import { AIRLINE_LABELS, type Inkassatsiya, type AirlineKey, type InkassatsiyaTu
 // GET: return all inkassatsiya
 export async function GET() {
   try {
-    const items = getInkassatsiya();
+    const items = await getInkassatsiya();
     return NextResponse.json({ inkassatsiya: items });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       turi,
     };
 
-    const items = addInkassatsiya(item);
+    const items = await addInkassatsiya(item);
 
     // Google Sheets'ga yozish
     appendToSheet('Inkassatsiya', [today, airlineName, item.summa, item.izoh]).catch(() => {});

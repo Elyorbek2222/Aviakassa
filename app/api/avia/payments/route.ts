@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const search = searchParams.get('search');
 
-    let payments = getPayments();
+    let payments = await getPayments();
 
     if (from) {
       payments = payments.filter((p) => p.sana >= from);
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       izoh: body.izoh || '',
     };
 
-    const payments = addSinglePayment(payment);
+    const payments = await addSinglePayment(payment);
 
     // Google Sheets'ga yozish
     const row = [
@@ -97,7 +97,7 @@ export async function DELETE() {
     if (!user || user.role !== 'admin') {
       return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 403 });
     }
-    clearPayments();
+    await clearPayments();
     return NextResponse.json({ message: 'Barcha to\'lovlar tozalandi' });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

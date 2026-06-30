@@ -5,7 +5,7 @@ import type { Refund } from '@/types/avia';
 
 export async function GET() {
   try {
-    return NextResponse.json({ refundlar: getRefundlar() });
+    return NextResponse.json({ refundlar: await getRefundlar() });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
   }
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       izoh: body.izoh || '',
     };
 
-    const all = addRefund(item);
+    const all = await addRefund(item);
 
     // Google Sheets'ga nusxa (Tolovlar sheetga REFUND deb yoziladi)
     appendToSheet('Tolovlar', [today, item.mijozIsmi, -item.summa, 'REFUND', item.biletRaqam, 'UZS', '', '', item.izoh || 'Refund']).catch(() => {});

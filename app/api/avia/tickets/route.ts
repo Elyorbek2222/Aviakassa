@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const biletRaqam = searchParams.get('biletRaqam');
 
-    let tickets = getTickets();
+    let tickets = await getTickets();
 
     if (biletRaqam) {
       tickets = tickets.filter((t) => t.biletRaqam === biletRaqam);
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       agent: agentName,
     };
 
-    const tickets = addSingleTicket(ticket);
+    const tickets = await addSingleTicket(ticket);
 
     // Google Sheets'ga ham yozish (asinxron — kutmaymiz)
     const airlineCols = { uzairways: 1, silk_avia: 2, centrum: 3, don_avia: 4, easybooking: 5, boshqa: 6 };
@@ -110,7 +110,7 @@ export async function DELETE() {
     if (!user || user.role !== 'admin') {
       return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 403 });
     }
-    clearTickets();
+    await clearTickets();
     return NextResponse.json({ message: 'Barcha biletlar tozalandi' });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

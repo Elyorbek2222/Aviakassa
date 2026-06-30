@@ -148,3 +148,44 @@ export interface AgentStat {
   sotuv: number;
   foyda: number;
 }
+
+// ===== Oylik sverka (otchot) — aviakassir ledger ↔ aviakompaniya hisobotlari =====
+
+export type SverkaHolat = 'matched' | 'only_beg' | 'no_ticket' | 'kiritilmagan';
+export type SverkaFarqTuri = '' | 'ok' | 'marja' | 'reissue' | 'farq';
+
+export interface SverkaRow {
+  id: string;
+  manba: 'begzod' | 'manba_only';
+  sana: string;
+  biletRaqam: string;
+  familiya: string;
+  ism: string;
+  nomi: string;
+  begzodJami: number | null;
+  kontragent: string;
+  manbaJami: number | null;
+  farq: number | null;
+  holat: SverkaHolat;
+  farqTuri: SverkaFarqTuri;
+  nomMos: boolean | null;
+}
+
+export interface SverkaStats {
+  begCount: number;
+  srcCount: number;
+  match: number;
+  onlyBeg: number;
+  noTicket: number;
+  farq: number;
+  reissue: number;
+  nameBad: number;
+  srcOnly: number;
+  begSum: number;
+  srcSum: number;
+}
+
+export interface SverkaData {
+  meta: { oy: string; manbalar: string[]; sverka: SverkaStats };
+  yozuvlar: SverkaRow[];
+}

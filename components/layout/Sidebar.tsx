@@ -13,6 +13,7 @@ import {
   LogOut,
   Landmark,
   BookOpen,
+  GitCompareArrows,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -29,6 +30,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/debts', label: 'Qarzdorlik', icon: <AlertTriangle size={18} /> },
   { href: '/inkassatsiya', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
   { href: '/upload', label: 'Excel Yuklash', icon: <Upload size={18} /> },
+  { href: '/aprel', label: 'Aprel Otchot', icon: <GitCompareArrows size={18} /> },
   { href: '/settings', label: 'Sozlamalar', icon: <Sliders size={18} /> },
   { href: '/begzod', label: 'Bilet Yozish', icon: <FileText size={18} /> },
   { href: '/begzod/debts', label: 'Qarzdorlar', icon: <AlertTriangle size={18} /> },

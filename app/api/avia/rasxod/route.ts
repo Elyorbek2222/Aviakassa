@@ -4,7 +4,7 @@ import type { Rasxod } from '@/types/avia';
 
 export async function GET() {
   try {
-    return NextResponse.json({ rasxodlar: getRasxodlar() });
+    return NextResponse.json({ rasxodlar: await getRasxodlar() });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
   }
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       sabab: body.sabab || '',
     };
 
-    const all = addRasxod(item);
+    const all = await addRasxod(item);
     return NextResponse.json({ rasxod: item, total: all.length });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
