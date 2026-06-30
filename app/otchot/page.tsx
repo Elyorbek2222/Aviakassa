@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
   CheckCircle2, AlertTriangle, FileWarning, GitCompareArrows, Coins, Layers,
@@ -66,13 +66,15 @@ export default function OtchotPage() {
   const { data: listData } = useSWR<{ otchotlar: OtchotListItem[] }>('/api/avia/otchot', fetcher, { revalidateOnFocus: false });
   const months = useMemo(() => listData?.otchotlar ?? [], [listData]);
 
-  const [selected, setSelected] = useState<string>('');
-  // Birinchi yuklanganda eng oxirgi (birinchi) oyni tanlash
-  useEffect(() => {
-    if (!selected && months.length > 0) setSelected(months[0].id);
-  }, [months, selected]);
+  // Rolga ko'ra ko'rinish: aviakassir (begzod) partnyor/manba summalarini va marjani ko'rmaydi
+  const { data: auth } = useSWR<{ user?: { role?: string } }>('/api/avia/auth', fetcher, { revalidateOnFocus: false });
+  const hideSupplier = auth?.user?.role === 'begzod';
 
-  const { data } = useSWR<SverkaData>(selected ? `/api/avia/otchot?id=${selected}` : null, fetcher, { revalidateOnFocus: false });
+  const [selected, setSelected] = useState<string>('');
+  // Tanlanmagan bo'lsa — birinchi (eng oxirgi) oy. Effekt ichida setState chaqirmaymiz.
+  const activeId = selected || (months[0]?.id ?? '');
+
+  const { data } = useSWR<SverkaData>(activeId ? `/api/avia/otchot?id=${activeId}` : null, fetcher, { revalidateOnFocus: false });
 
   const [tab, setTab] = useState<Tab>('biletlar');
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -151,7 +153,7 @@ export default function OtchotPage() {
         <Calendar size={16} style={{ color: C.mut }} />
         {months.length === 0 && <span style={{ color: C.dim, fontSize: 13 }}>{listData ? 'Otchot yo‘q' : 'Yuklanmoqda…'}</span>}
         {months.map((it) => {
-          const active = selected === it.id;
+          const active = activeId === it.id;
           return (
             <button key={it.id} onClick={() => setSelected(it.id)}
               style={{ padding: '8px 16px', borderRadius: 9, fontSize: 13.5, cursor: 'pointer', fontWeight: active ? 700 : 500,
@@ -162,7 +164,7 @@ export default function OtchotPage() {
         })}
       </div>
 
-      {!selected ? null : (
+      {!activeId ? null : (
         <>
           {/* KPI */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
@@ -210,7 +212,9 @@ export default function OtchotPage() {
                       <tr>
                         <th style={th}>Sana</th><th style={th}>Bilet raqami</th><th style={th}>Familiya</th><th style={th}>Ism</th>
                         <th style={{ ...th, textAlign: 'right' }}>Begzod jami</th><th style={th}>Kontragent</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Manba jami</th><th style={{ ...th, textAlign: 'right' }}>Δ farq</th><th style={th}>Holat</th>
+                        {!hideSupplier && <th style={{ ...th, textAlign: 'right' }}>Manba jami</th>}
+                        {!hideSupplier && <th style={{ ...th, textAlign: 'right' }}>Δ farq</th>}
+                        <th style={th}>Holat</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -222,13 +226,13 @@ export default function OtchotPage() {
                           <td style={{ ...td, color: C.mut }}>{r.ism}</td>
                           <td style={{ ...td, textAlign: 'right', color: r.begzodJami != null && r.begzodJami < 0 ? C.red : '#e6f0ea', fontFamily: 'var(--font-geist-mono)' }}>{fmt(r.begzodJami)}</td>
                           <td style={{ ...td, color: C.mut }}>{r.kontragent || '—'}</td>
-                          <td style={{ ...td, textAlign: 'right', color: r.manbaJami != null && r.manbaJami < 0 ? C.red : '#e6f0ea', fontFamily: 'var(--font-geist-mono)' }}>{fmt(r.manbaJami)}</td>
-                          <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-geist-mono)', color: r.farq ? (r.farq < 0 ? C.red : C.orange) : C.dim }}>{r.farq == null ? '' : (r.farq > 0 ? '+' : '') + fmt(r.farq)}</td>
+                          {!hideSupplier && <td style={{ ...td, textAlign: 'right', color: r.manbaJami != null && r.manbaJami < 0 ? C.red : '#e6f0ea', fontFamily: 'var(--font-geist-mono)' }}>{fmt(r.manbaJami)}</td>}
+                          {!hideSupplier && <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-geist-mono)', color: r.farq ? (r.farq < 0 ? C.red : C.orange) : C.dim }}>{r.farq == null ? '' : (r.farq > 0 ? '+' : '') + fmt(r.farq)}</td>}
                           <td style={td}><Tag r={r} /></td>
                         </tr>
                       ))}
                       {filtered.length === 0 && (
-                        <tr><td colSpan={9} style={{ ...td, textAlign: 'center', color: C.dim, padding: 30 }}>{data ? 'Bu filtr bo‘yicha yozuv yo‘q' : 'Yuklanmoqda…'}</td></tr>
+                        <tr><td colSpan={hideSupplier ? 7 : 9} style={{ ...td, textAlign: 'center', color: C.dim, padding: 30 }}>{data ? 'Bu filtr bo‘yicha yozuv yo‘q' : 'Yuklanmoqda…'}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -244,7 +248,7 @@ export default function OtchotPage() {
                 <Kpi icon={<Wallet size={18} />} label="Jami sotuv (Begzod)" value={fmt(totSotuv)} color={C.green} />
                 <Kpi icon={<AlertTriangle size={18} />} label="Refundlar" value={fmt(totRefund)} color={C.red} />
                 <Kpi icon={<Coins size={18} />} label="Sof (net)" value={fmt(totBeg)} color={C.blue} />
-                <Kpi icon={<GitCompareArrows size={18} />} label="Manba summa" value={fmt(totSrc)} color={C.orange} />
+                {!hideSupplier && <Kpi icon={<GitCompareArrows size={18} />} label="Manba summa" value={fmt(totSrc)} color={C.orange} />}
               </div>
 
               <div style={{ color: C.mut, fontSize: 11.5, marginBottom: 12 }}>
@@ -262,7 +266,7 @@ export default function OtchotPage() {
                         <th style={{ ...th, textAlign: 'right' }}>Sotuv</th>
                         <th style={{ ...th, textAlign: 'right' }}>Refund</th>
                         <th style={{ ...th, textAlign: 'right' }}>Begzod (net)</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Manba summa</th>
+                        {!hideSupplier && <th style={{ ...th, textAlign: 'right' }}>Manba summa</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -273,7 +277,7 @@ export default function OtchotPage() {
                           <td style={{ ...td, textAlign: 'right', color: C.green, fontFamily: 'var(--font-geist-mono)' }}>{fmt(m.sotuv)}</td>
                           <td style={{ ...td, textAlign: 'right', color: m.refund ? C.red : C.dim, fontFamily: 'var(--font-geist-mono)' }}>{m.refund ? fmt(m.refund) : '—'}</td>
                           <td style={{ ...td, textAlign: 'right', color: '#e6f0ea', fontFamily: 'var(--font-geist-mono)' }}>{fmt(m.beg)}</td>
-                          <td style={{ ...td, textAlign: 'right', color: C.mut, fontFamily: 'var(--font-geist-mono)' }}>{fmt(m.src)}</td>
+                          {!hideSupplier && <td style={{ ...td, textAlign: 'right', color: C.mut, fontFamily: 'var(--font-geist-mono)' }}>{fmt(m.src)}</td>}
                         </tr>
                       ))}
                     </tbody>
@@ -284,7 +288,7 @@ export default function OtchotPage() {
                         <td style={{ ...td, textAlign: 'right', color: C.green, fontWeight: 800, borderTop: `2px solid ${C.line}`, fontFamily: 'var(--font-geist-mono)' }}>{fmt(totSotuv)}</td>
                         <td style={{ ...td, textAlign: 'right', color: C.red, fontWeight: 800, borderTop: `2px solid ${C.line}`, fontFamily: 'var(--font-geist-mono)' }}>{fmt(totRefund)}</td>
                         <td style={{ ...td, textAlign: 'right', color: '#fff', fontWeight: 800, borderTop: `2px solid ${C.line}`, fontFamily: 'var(--font-geist-mono)' }}>{fmt(totBeg)}</td>
-                        <td style={{ ...td, textAlign: 'right', color: C.mut, fontWeight: 800, borderTop: `2px solid ${C.line}`, fontFamily: 'var(--font-geist-mono)' }}>{fmt(totSrc)}</td>
+                        {!hideSupplier && <td style={{ ...td, textAlign: 'right', color: C.mut, fontWeight: 800, borderTop: `2px solid ${C.line}`, fontFamily: 'var(--font-geist-mono)' }}>{fmt(totSrc)}</td>}
                       </tr>
                     </tfoot>
                   </table>

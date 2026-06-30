@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRasxodlar, addRasxod } from '@/lib/avia-storage';
+import { cookies } from 'next/headers';
+import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
+import { getRasxodlar, addRasxod, updateRasxod } from '@/lib/avia-storage';
+import { ticketEditRemainingMs } from '@/lib/utils';
 import type { Rasxod } from '@/types/avia';
 
 export async function GET() {
@@ -24,6 +27,45 @@ export async function POST(request: NextRequest) {
 
     const all = await addRasxod(item);
     return NextResponse.json({ rasxod: item, total: all.length });
+  } catch {
+    return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
+  }
+}
+
+// PATCH: edit an existing rasxod.
+// Ruxsat: admin — istalgan vaqtda; kassir (Finansist) — 48 soat ichida.
+export async function PATCH(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const user = token ? getSessionFromToken(token) : null;
+    if (!user) return NextResponse.json({ error: 'Avtorizatsiya yo\'q' }, { status: 401 });
+
+    const body = await request.json();
+    const id = String(body.id || '');
+    if (!id) return NextResponse.json({ error: 'id kerak' }, { status: 400 });
+
+    const all = await getRasxodlar();
+    const existing = all.find((r) => r.id === id);
+    if (!existing) return NextResponse.json({ error: 'Rasxod topilmadi' }, { status: 404 });
+
+    const isAdmin = user.role === 'admin';
+    const isFinance = user.role === 'kassir';
+    if (!isAdmin && !isFinance) {
+      return NextResponse.json({ error: 'Tahrirlash huquqi yo\'q' }, { status: 403 });
+    }
+    if (!isAdmin && ticketEditRemainingMs(existing) <= 0) {
+      return NextResponse.json({ error: '48 soatlik tahrirlash muddati tugagan' }, { status: 403 });
+    }
+
+    const updated: Rasxod = {
+      ...existing, // id, sana o'zgarmaydi
+      summa: body.summa !== undefined ? Number(body.summa) : existing.summa,
+      sabab: body.sabab ?? existing.sabab,
+    };
+
+    await updateRasxod(updated);
+    return NextResponse.json({ rasxod: updated });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
   }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
-import { getTickets, addSingleTicket, clearTickets } from '@/lib/avia-storage';
+import { getTickets, addSingleTicket, clearTickets, updateTicket } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
+import { ticketEditRemainingMs } from '@/lib/utils';
 import { AIRLINE_LABELS, type AviaTicket, type AirlineKey } from '@/types/avia';
 
 // GET: return tickets with optional filters
@@ -96,6 +97,60 @@ export async function POST(request: NextRequest) {
     appendToSheet('Biletlar', row).catch(() => {});
 
     return NextResponse.json({ ticket, total: tickets.length });
+  } catch {
+    return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
+  }
+}
+
+// PATCH: edit an existing ticket.
+// Ruxsat: admin — istalgan vaqtda; begzod (aviakassir) — faqat O'Z bileti va
+// yaratilgandan 48 soat ichida. Boshqalar — taqiqlangan.
+export async function PATCH(request: NextRequest) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const user = token ? getSessionFromToken(token) : null;
+    if (!user) {
+      return NextResponse.json({ error: 'Avtorizatsiya yo\'q' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const id = String(body.id || '');
+    if (!id) {
+      return NextResponse.json({ error: 'id kerak' }, { status: 400 });
+    }
+
+    const tickets = await getTickets();
+    const existing = tickets.find((t) => t.id === id);
+    if (!existing) {
+      return NextResponse.json({ error: 'Bilet topilmadi' }, { status: 404 });
+    }
+
+    const isAdmin = user.role === 'admin';
+    const isOwnerAgent = user.role === 'begzod' && existing.agent === user.name;
+    if (!isAdmin && !isOwnerAgent) {
+      return NextResponse.json({ error: 'Bu biletni tahrirlash huquqi yo\'q' }, { status: 403 });
+    }
+    // Aviakassir uchun 48 soatlik muddat (admin uchun cheklov yo'q)
+    if (!isAdmin && ticketEditRemainingMs(existing) <= 0) {
+      return NextResponse.json({ error: '48 soatlik tahrirlash muddati tugagan' }, { status: 403 });
+    }
+
+    const airlineKey = (body.airline as AirlineKey) ?? existing.airline;
+    const updated: AviaTicket = {
+      ...existing, // id, sana, agent o'zgarmaydi
+      airline: airlineKey,
+      airlineName: AIRLINE_LABELS[airlineKey] || body.airlineName || existing.airlineName,
+      biletRaqam: body.biletRaqam ?? existing.biletRaqam,
+      yolovchi: body.yolovchi ?? existing.yolovchi,
+      passengerCount: body.passengerCount ?? existing.passengerCount,
+      tarif: body.tarif !== undefined ? Number(body.tarif) : existing.tarif,
+      sotishNarxi: body.sotishNarxi !== undefined ? Number(body.sotishNarxi) : existing.sotishNarxi,
+      izoh: body.izoh ?? existing.izoh,
+    };
+
+    await updateTicket(updated);
+    return NextResponse.json({ ticket: updated });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
   }

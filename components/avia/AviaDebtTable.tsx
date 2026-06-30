@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { Search } from 'lucide-react';
 import type { DebtRecord } from '@/types/avia';
 import { AIRLINE_LABELS, type AirlineKey } from '@/types/avia';
 import { formatMoney } from '@/lib/utils';
@@ -9,7 +11,14 @@ interface Props {
 }
 
 export default function AviaDebtTable({ debts }: Props) {
-  const safeDebts = debts ?? [];
+  const allDebts = debts ?? [];
+  const [search, setSearch] = useState('');
+  const q = search.trim().toLowerCase();
+  const safeDebts = q
+    ? allDebts.filter((d) =>
+        `${d.mijozIsmi} ${d.biletRaqam} ${d.sana}`.toLowerCase().includes(q)
+      )
+    : allDebts;
   const totalQarz = safeDebts.reduce((sum, d) => sum + d.qarz, 0);
 
   const thStyle: React.CSSProperties = {
@@ -60,9 +69,20 @@ export default function AviaDebtTable({ debts }: Props) {
         </div>
       )}
 
-      <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
-        Qarzdorlik jadvali
-      </h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, margin: 0 }}>
+          Qarzdorlik jadvali
+        </h3>
+        <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 280 }}>
+          <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#4A5C50' }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Mijoz yoki bilet bo'yicha qidirish…"
+            style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: '#0A0F0D', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+      </div>
 
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -100,7 +120,7 @@ export default function AviaDebtTable({ debts }: Props) {
             {safeDebts.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ ...tdStyle, color: '#4A5C50', textAlign: 'center' }}>
-                  Qarzdorlik yo&apos;q
+                  {q ? 'Topilmadi' : 'Qarzdorlik yo\'q'}
                 </td>
               </tr>
             )}

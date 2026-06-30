@@ -59,6 +59,11 @@ export async function addSingleTicket(ticket: AviaTicket): Promise<AviaTicket[]>
   return addTickets([ticket]);
 }
 
+// Mavjud biletni yangilash (id bo'yicha upsert)
+export async function updateTicket(ticket: AviaTicket): Promise<void> {
+  await upsertDocs('tickets', [ticket]);
+}
+
 export async function clearTickets(): Promise<void> {
   await deleteAll('tickets');
 }
@@ -76,6 +81,11 @@ export async function addPayments(payments: AviaPayment[]): Promise<AviaPayment[
 
 export async function addSinglePayment(payment: AviaPayment): Promise<AviaPayment[]> {
   return addPayments([payment]);
+}
+
+// Mavjud to'lovni (prixod) yangilash — id bo'yicha upsert
+export async function updatePayment(payment: AviaPayment): Promise<void> {
+  await upsertDocs('payments', [payment]);
 }
 
 export async function clearPayments(): Promise<void> {
@@ -102,6 +112,11 @@ export async function getRasxodlar(): Promise<Rasxod[]> {
 export async function addRasxod(item: Rasxod): Promise<Rasxod[]> {
   await upsertDocs('rasxod', [item]);
   return getRasxodlar();
+}
+
+// Mavjud rasxodni yangilash — id bo'yicha upsert
+export async function updateRasxod(item: Rasxod): Promise<void> {
+  await upsertDocs('rasxod', [item]);
 }
 
 // ===== Refund =====

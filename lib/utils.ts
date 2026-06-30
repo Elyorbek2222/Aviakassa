@@ -35,3 +35,25 @@ export function formatMoney(n: number): string {
 export function formatFullMoney(n: number): string {
   return n.toLocaleString('uz-UZ') + " so'm";
 }
+
+// ===== Bilet tahrirlash oynasi (aviakassir o'z biletini 48 soat ichida o'zgartira oladi) =====
+
+export const TICKET_EDIT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 soat
+
+/** Bilet yaratilgan vaqti (ms). id formati: TKT-<ms>-<rand>. Bo'lmasa — sana. */
+export function ticketCreatedAtMs(t: { id?: string; sana?: string }): number {
+  const m = t.id ? /^[A-Z]+-(\d{10,})-/.exec(t.id) : null;
+  if (m) return Number(m[1]);
+  if (t.sana) {
+    const d = Date.parse(t.sana);
+    if (!Number.isNaN(d)) return d;
+  }
+  return 0;
+}
+
+/** Tahrirlashgacha qolgan vaqt (ms). Manfiy bo'lsa — muddat o'tgan. */
+export function ticketEditRemainingMs(t: { id?: string; sana?: string }, now: number = Date.now()): number {
+  const created = ticketCreatedAtMs(t);
+  if (!created) return -1;
+  return TICKET_EDIT_WINDOW_MS - (now - created);
+}
