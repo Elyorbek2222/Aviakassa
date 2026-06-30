@@ -337,12 +337,7 @@ export default function BegzodPage() {
   for (const d of debts) debtMap.set(d.biletRaqam, d);
 
   const jamiBiletlar = tickets.length;
-  const jamiSotuv = tickets.reduce((s, t) => s + t.sotishNarxi, 0);
   const jamiQarz = debts.reduce((s, d) => s + d.qarz, 0);
-  const jamiTolangan = tickets.reduce((s, t) => {
-    const d = debtMap.get(t.biletRaqam);
-    return s + (d ? d.tolangan : t.sotishNarxi);
-  }, 0);
   const qarzli = debts.length;
   const yopilgan = Math.max(0, jamiBiletlar - qarzli);
   const progress = jamiBiletlar > 0 ? Math.round((yopilgan / jamiBiletlar) * 100) : 100;
@@ -367,27 +362,33 @@ export default function BegzodPage() {
 
         {/* Right: KPI + Goal + Tickets */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* KPI cards */}
+          {/* Holat kartalari — sotuv/foyda yo'q, faqat biletlar va to'lov holati */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Biletlar</div>
-              <div style={{ color: '#fff', fontSize: 24, fontWeight: 700 }}>{jamiBiletlar}</div>
-            </div>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, textAlign: 'center' }}>
-              <div style={{ color: '#8A9A8F', fontSize: 12 }}>Jami Sotuv</div>
-              <div style={{ color: '#7CFF4F', fontSize: 22, fontWeight: 700 }}>{formatMoney(jamiSotuv)}</div>
-            </div>
             <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Wallet size={18} style={{ color: '#2CA5E0', flexShrink: 0 }} />
+              <Plane size={18} style={{ color: '#F5A623', flexShrink: 0, transform: 'rotate(-45deg)' }} />
               <div>
-                <div style={{ color: '#8A9A8F', fontSize: 11 }}>To&apos;langan</div>
-                <div style={{ color: '#2CA5E0', fontSize: 17, fontWeight: 700 }}>{formatMoney(jamiTolangan)}</div>
+                <div style={{ color: '#8A9A8F', fontSize: 11 }}>Biletlar</div>
+                <div style={{ color: '#fff', fontSize: 20, fontWeight: 700 }}>{jamiBiletlar}</div>
               </div>
             </div>
             <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <AlertTriangle size={18} style={{ color: jamiQarz > 0 ? '#FF4444' : '#7CFF4F', flexShrink: 0 }} />
+              <CheckCircle2 size={18} style={{ color: '#7CFF4F', flexShrink: 0 }} />
               <div>
-                <div style={{ color: '#8A9A8F', fontSize: 11 }}>Qarz</div>
+                <div style={{ color: '#8A9A8F', fontSize: 11 }}>To&apos;langan biletlar</div>
+                <div style={{ color: '#7CFF4F', fontSize: 20, fontWeight: 700 }}>{yopilgan}</div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <AlertTriangle size={18} style={{ color: qarzli > 0 ? '#FF4444' : '#7CFF4F', flexShrink: 0 }} />
+              <div>
+                <div style={{ color: '#8A9A8F', fontSize: 11 }}>Qarzli biletlar</div>
+                <div style={{ color: qarzli > 0 ? '#FF4444' : '#7CFF4F', fontSize: 20, fontWeight: 700 }}>{qarzli}</div>
+              </div>
+            </div>
+            <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Wallet size={18} style={{ color: jamiQarz > 0 ? '#FF4444' : '#7CFF4F', flexShrink: 0 }} />
+              <div>
+                <div style={{ color: '#8A9A8F', fontSize: 11 }}>Jami qarz</div>
                 <div style={{ color: jamiQarz > 0 ? '#FF4444' : '#7CFF4F', fontSize: 17, fontWeight: 700 }}>{formatMoney(jamiQarz)}</div>
               </div>
             </div>
@@ -428,15 +429,16 @@ export default function BegzodPage() {
                       <th style={th}>Sana</th>
                       <th style={th}>Bilet</th>
                       <th style={th}>Yo&apos;lovchi</th>
-                      <th style={{ ...th, textAlign: 'right' }}>Narx</th>
-                      <th style={{ ...th, textAlign: 'right' }}>Holat</th>
+                      <th style={{ ...th, textAlign: 'right' }}>To&apos;lov holati</th>
                       <th style={{ ...th, textAlign: 'right' }}>Amal</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tickets.slice().reverse().map((t) => {
                       const d = debtMap.get(t.biletRaqam);
-                      const isQarzli = !!d && d.qarz > 0;
+                      const qarz = d ? d.qarz : 0;
+                      const tolangan = d ? d.tolangan : t.sotishNarxi;
+                      const badge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700 };
                       const remaining = ticketEditRemainingMs(t, now);
                       const editable = remaining > 0;
                       const soatQoldi = Math.floor(remaining / 3600000);
@@ -446,15 +448,18 @@ export default function BegzodPage() {
                           <td style={{ padding: '8px 10px', color: '#8A9A8F', fontSize: 12 }}>{t.sana}</td>
                           <td style={{ padding: '8px 10px', color: '#fff', fontSize: 12, fontFamily: 'var(--font-geist-mono)' }}>{t.biletRaqam}</td>
                           <td style={{ padding: '8px 10px', color: '#fff', fontSize: 13 }}>{t.yolovchi}</td>
-                          <td style={{ padding: '8px 10px', color: '#7CFF4F', fontSize: 13, textAlign: 'right' }}>{formatMoney(t.sotishNarxi)}</td>
                           <td style={{ padding: '8px 10px', textAlign: 'right' }}>
-                            {isQarzli ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: '#FF444418', color: '#FF4444', border: '1px solid #FF444430' }}>
-                                <AlertTriangle size={10} /> {formatMoney(d!.qarz)}
+                            {qarz <= 0 ? (
+                              <span style={{ ...badge, backgroundColor: '#7CFF4F18', color: '#7CFF4F', border: '1px solid #7CFF4F30' }}>
+                                <CheckCircle2 size={10} /> To&apos;landi
+                              </span>
+                            ) : tolangan > 0 ? (
+                              <span style={{ ...badge, backgroundColor: '#F5A62318', color: '#F5A623', border: '1px solid #F5A62340' }} title={`To'langan: ${formatMoney(tolangan)}`}>
+                                <AlertTriangle size={10} /> Qisman · qarz {formatMoney(qarz)}
                               </span>
                             ) : (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: '#7CFF4F18', color: '#7CFF4F', border: '1px solid #7CFF4F30' }}>
-                                <CheckCircle2 size={10} /> Yopilgan
+                              <span style={{ ...badge, backgroundColor: '#FF444418', color: '#FF4444', border: '1px solid #FF444430' }}>
+                                <X size={10} /> To&apos;lanmadi · {formatMoney(qarz)}
                               </span>
                             )}
                           </td>
