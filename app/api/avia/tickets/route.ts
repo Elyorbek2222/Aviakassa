@@ -4,6 +4,7 @@ import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getTickets, addSingleTicket, clearTickets, updateTicket } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
 import { ticketEditRemainingMs } from '@/lib/utils';
+import { requireRole } from '@/lib/api-auth';
 import { AIRLINE_LABELS, type AviaTicket, type AirlineKey } from '@/types/avia';
 
 // GET: return tickets with optional filters
@@ -53,16 +54,10 @@ export async function GET(request: NextRequest) {
 // POST: add single ticket from form
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-    let agentName = 'Admin';
-
-    if (sessionCookie?.value) {
-      const user = getSessionFromToken(sessionCookie.value);
-      if (user) {
-        agentName = user.name;
-      }
-    }
+    // Bilet yozish — admin yoki aviakassir (begzod). Agent nomi sessiyadan olinadi.
+    const auth = await requireRole(['admin', 'begzod']);
+    if (auth instanceof NextResponse) return auth;
+    const agentName = auth.name;
 
     const body = await request.json();
     const today = new Date().toISOString().split('T')[0];

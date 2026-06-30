@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { AlertTriangle } from 'lucide-react';
 
@@ -22,14 +21,6 @@ function formatMoney(n: number): string {
 
 export default function BegzodDebtsPage() {
   const { data } = useSWR('/api/avia/reports', fetcher);
-  const [agentName, setAgentName] = useState('');
-
-  useEffect(() => {
-    fetch('/api/avia/auth')
-      .then((r) => r.json())
-      .then((d) => { if (d?.user?.name) setAgentName(d.user.name); })
-      .catch(() => {});
-  }, []);
 
   // Faqat Begzod yozgan biletlarning qarzlarini ko'rsatish
   const allDebts: DebtItem[] = data?.debts || [];

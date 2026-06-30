@@ -15,9 +15,8 @@ export default function AviaTicketsTable({ tickets }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('sana');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const safeTickets = tickets ?? [];
-
   const filtered = useMemo(() => {
+    const safeTickets = tickets ?? [];
     const q = search.toLowerCase();
     let result = safeTickets;
     if (q) {
@@ -40,7 +39,7 @@ export default function AviaTicketsTable({ tickets }: Props) {
       return sortDir === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
     });
     return result;
-  }, [safeTickets, search, sortKey, sortDir]);
+  }, [tickets, search, sortKey, sortDir]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {

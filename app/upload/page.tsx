@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, Cloud, Check, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { Cloud, Check, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import AviaUploadForm from '@/components/avia/AviaUploadForm';
 
 export default function UploadPage() {

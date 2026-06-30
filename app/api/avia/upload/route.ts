@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { addTickets, addPayments, addInkassatsiya } from '@/lib/avia-storage'
 import { parseTicketsExcel, parsePaymentsExcel, parseInkassatsiyaExcel } from '@/lib/avia-parser'
+import { requireRole } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    // Excel yuklash — faqat admin (/upload sahifasi admin-only).
+    const auth = await requireRole(['admin'])
+    if (auth instanceof NextResponse) return auth
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string

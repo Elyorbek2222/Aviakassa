@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRefundlar, addRefund } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
+import { requireRole } from '@/lib/api-auth';
 import type { Refund } from '@/types/avia';
 
 export async function GET() {
@@ -13,6 +14,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Bilet puli qaytarish — admin yoki Finansist (kassir).
+    const auth = await requireRole(['admin', 'kassir']);
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const today = new Date().toISOString().split('T')[0];
 

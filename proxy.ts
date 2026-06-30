@@ -1,26 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromToken, SESSION_COOKIE_NAME, ROLE_PAGES, ROLE_HOME, type UserRole } from './lib/auth';
 
-const PUBLIC_PATHS = ['/login', '/api/auth'];
+// Next.js 16'dan boshlab "middleware" -> "proxy" deb nomlanadi (vazifa o'zgarmagan).
+// Bu faqat sahifalar uchun optimistik yo'naltirish — har bir API route o'z
+// avtorizatsiyasini ichida tekshiradi (lib/api-auth.ts).
+
+const PUBLIC_PATHS = ['/login'];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow all API routes through (they handle own auth)
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth')) {
+  // Barcha API route'lar o'tib ketadi — ular o'z auth'ini ichida tekshiradi.
+  // (Sahifa emas, JSON qaytaradigan endpoint'larni /login'ga yo'naltirib bo'lmaydi.)
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  // Allow public paths
+  // Ochiq yo'llar (login)
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  // Check session cookie
+  // Sessiya cookie'sini tekshirish
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
   if (!sessionCookie?.value) {
     const loginUrl = new URL('/login', request.url);
@@ -28,7 +33,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Decode session
+  // Sessiyani dekodlash
   const user = getSessionFromToken(sessionCookie.value);
   if (!user) {
     const loginUrl = new URL('/login', request.url);
@@ -37,7 +42,7 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // Check role-based access
+  // Rolga asoslangan kirish nazorati
   const role = user.role as UserRole;
   const allowedPages = ROLE_PAGES[role] || [];
   const hasAccess = allowedPages.some((page) => {

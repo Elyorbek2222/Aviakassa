@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInkassatsiya, addInkassatsiya } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
+import { requireRole } from '@/lib/api-auth';
 import { AIRLINE_LABELS, type Inkassatsiya, type AirlineKey, type InkassatsiyaTuri } from '@/types/avia';
 
 // GET: return all inkassatsiya
@@ -16,6 +17,10 @@ export async function GET() {
 // POST: add single inkassatsiya
 export async function POST(request: NextRequest) {
   try {
+    // Inkassatsiya — admin, Finansist (kassir) yoki Buxgalter.
+    const auth = await requireRole(['admin', 'kassir', 'buxgalter']);
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const today = new Date().toISOString().split('T')[0];
 

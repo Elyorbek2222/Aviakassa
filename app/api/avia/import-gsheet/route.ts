@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as XLSX from 'xlsx'
 import { addTickets, addPayments, addInkassatsiya, clearTickets, clearPayments } from '@/lib/avia-storage'
 import { parseTicketsExcel, parsePaymentsExcel, parseInkassatsiyaExcel } from '@/lib/avia-parser'
+import { requireRole } from '@/lib/api-auth'
 
 const SPREADSHEET_ID = '1neMhF_fvLogrYleY_-sQWLFC5SHGvUBTBbPPx83bzZg'
 
@@ -25,6 +26,10 @@ function csvToBuffer(csv: string): Buffer {
 
 export async function POST(request: NextRequest) {
   try {
+    // Faqat admin — `fresh:true` butun biletlar/to'lovlar bazasini tozalaydi.
+    const auth = await requireRole(['admin'])
+    if (auth instanceof NextResponse) return auth
+
     const body = await request.json().catch(() => ({}))
     const fresh = body.fresh === true // true bo'lsa — eski datani tozalab, yangidan yuklaydi
 

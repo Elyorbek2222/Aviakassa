@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getRasxodlar, addRasxod, updateRasxod } from '@/lib/avia-storage';
 import { ticketEditRemainingMs } from '@/lib/utils';
+import { requireRole } from '@/lib/api-auth';
 import type { Rasxod } from '@/types/avia';
 
 export async function GET() {
@@ -15,6 +16,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Chiqim qo'shish — admin yoki Finansist (kassir).
+    const auth = await requireRole(['admin', 'kassir']);
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const today = new Date().toISOString().split('T')[0];
 

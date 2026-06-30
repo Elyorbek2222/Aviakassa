@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSettings, updateSettings } from '@/lib/avia-storage';
+import { requireRole } from '@/lib/api-auth';
 
 // GET: return settings
 export async function GET() {
@@ -14,6 +15,10 @@ export async function GET() {
 // PUT: update settings
 export async function PUT(request: NextRequest) {
   try {
+    // Komissiya sozlamalari butun foyda hisobiga ta'sir qiladi — faqat admin.
+    const auth = await requireRole(['admin']);
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const updated = await updateSettings(body);
     return NextResponse.json({ settings: updated });
