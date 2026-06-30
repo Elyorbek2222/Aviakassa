@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import {
   Banknote, Smartphone, Building2, ArrowUpRight, ArrowDownRight,
-  TrendingDown, TrendingUp, CheckCircle2, Landmark, Calculator, Pencil, Lock, X,
+  TrendingDown, CheckCircle2, Landmark, Calculator, Pencil, Lock, X,
+  Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText,
 } from 'lucide-react';
 import { formatMoney, ticketEditRemainingMs, ticketCreatedAtMs } from '@/lib/utils';
-import { AIRLINE_LABELS, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod } from '@/types/avia';
+import { AIRLINE_LABELS, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket } from '@/types/avia';
 import AviaDebtTable from '@/components/avia/AviaDebtTable';
 import RasxodForm from '@/components/avia/RasxodForm';
 import RefundForm from '@/components/avia/RefundForm';
@@ -17,7 +18,14 @@ import { inputStyle, labelStyle, MessageBox } from '@/components/avia/formStyles
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-const ACCENT = '#2CA5E0';
+// ===== Tema tokenlari =====
+const T = {
+  bg: '#0A0F0D', card: '#141F19', line: '#1E2E24', mut: '#8A9A8F', dim: '#4A5C50',
+  text: '#fff', green: '#7CFF4F', blue: '#2CA5E0', red: '#FF5C5C', orange: '#F5A623', purple: '#9B59B6',
+};
+const ACCENT = T.blue;
+const card: React.CSSProperties = { backgroundColor: T.card, border: `1px solid ${T.line}`, borderRadius: 14, padding: 20 };
+const fmtUsd = (n: number) => n.toLocaleString('en-US');
 
 function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
   const [form, setForm] = useState({
@@ -170,7 +178,6 @@ function InkassatsiyaTab({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      {/* Turi toggle */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {([
           { key: 'aviakompaniya' as const, label: 'Aviakompaniyaga' },
@@ -178,9 +185,9 @@ function InkassatsiyaTab({ onSuccess }: { onSuccess: () => void }) {
         ]).map((opt) => (
           <button type="button" key={opt.key} onClick={() => setTuri(opt.key)} style={{
             flex: 1, padding: '9px 12px', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            border: `1px solid ${turi === opt.key ? '#9B59B6' : '#1E2E24'}`,
+            border: `1px solid ${turi === opt.key ? T.purple : T.line}`,
             backgroundColor: turi === opt.key ? '#9B59B618' : 'transparent',
-            color: turi === opt.key ? '#9B59B6' : '#4A5C50',
+            color: turi === opt.key ? T.purple : T.dim,
           }}>{opt.label}</button>
         ))}
       </div>
@@ -204,8 +211,8 @@ function InkassatsiyaTab({ onSuccess }: { onSuccess: () => void }) {
       </div>
       <MessageBox message={message} />
       <button type="submit" disabled={loading} style={{
-        width: '100%', padding: '12px 20px', borderRadius: 9, border: '1px solid #9B59B6',
-        backgroundColor: '#9B59B618', color: '#9B59B6', fontSize: 14, fontWeight: 700,
+        width: '100%', padding: '12px 20px', borderRadius: 9, border: `1px solid ${T.purple}`,
+        backgroundColor: '#9B59B618', color: T.purple, fontSize: 14, fontWeight: 700,
         cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, letterSpacing: '0.04em',
       }}>
         {loading ? 'Saqlanmoqda...' : turi === 'kassa' ? '↪ Kassa Topshirish' : '↪ Inkassatsiya Yozish'}
@@ -219,12 +226,12 @@ function InkassatsiyaTab({ onSuccess }: { onSuccess: () => void }) {
 function ModalShell({ title, accent, onClose, children }: { title: string; accent: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 20, overflowY: 'auto', zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, backgroundColor: '#141F19', border: '1px solid #1E2E24', borderTop: `2px solid ${accent}`, borderRadius: 14, padding: 24, marginTop: 40 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, backgroundColor: T.card, border: `1px solid ${T.line}`, borderTop: `2px solid ${accent}`, borderRadius: 14, padding: 24, marginTop: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h3 style={{ color: T.text, fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Pencil size={18} style={{ color: accent }} /> {title}
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#8A9A8F', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+          <button onClick={onClose} aria-label="Yopish" style={{ background: 'none', border: 'none', color: T.mut, cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
         </div>
         {children}
       </div>
@@ -266,7 +273,7 @@ function PaymentEditModal({ payment, onClose, onSaved }: { payment: AviaPayment;
   };
 
   return (
-    <ModalShell title="Prixodni tahrirlash" accent="#2CA5E0" onClose={onClose}>
+    <ModalShell title="Prixodni tahrirlash" accent={T.blue} onClose={onClose}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Bilet Raqami</label>
@@ -311,7 +318,7 @@ function PaymentEditModal({ payment, onClose, onSaved }: { payment: AviaPayment;
           <input type="text" value={form.izoh} onChange={(e) => setForm({ ...form, izoh: e.target.value })} style={inputStyle} />
         </div>
         <MessageBox message={message} />
-        <SaveButtons loading={loading} accent="#2CA5E0" onClose={onClose} />
+        <SaveButtons loading={loading} accent={T.blue} onClose={onClose} />
       </form>
     </ModalShell>
   );
@@ -337,7 +344,7 @@ function RasxodEditModal({ rasxod, onClose, onSaved }: { rasxod: Rasxod; onClose
   };
 
   return (
-    <ModalShell title="Rasxodni tahrirlash" accent="#FF5C5C" onClose={onClose}>
+    <ModalShell title="Rasxodni tahrirlash" accent={T.red} onClose={onClose}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Summa (UZS)</label>
@@ -348,7 +355,7 @@ function RasxodEditModal({ rasxod, onClose, onSaved }: { rasxod: Rasxod; onClose
           <input type="text" value={sabab} onChange={(e) => setSabab(e.target.value)} placeholder="Nima uchun chiqim" style={inputStyle} />
         </div>
         <MessageBox message={message} />
-        <SaveButtons loading={loading} accent="#FF5C5C" onClose={onClose} />
+        <SaveButtons loading={loading} accent={T.red} onClose={onClose} />
       </form>
     </ModalShell>
   );
@@ -357,8 +364,8 @@ function RasxodEditModal({ rasxod, onClose, onSaved }: { rasxod: Rasxod; onClose
 function SaveButtons({ loading, accent, onClose }: { loading: boolean; accent: string; onClose: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 10 }}>
-      <button type="button" onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Bekor qilish</button>
-      <button type="submit" disabled={loading} style={{ flex: 2, padding: 12, borderRadius: 8, border: 'none', backgroundColor: accent, color: '#0A0F0D', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+      <button type="button" onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 8, border: `1px solid ${T.line}`, backgroundColor: 'transparent', color: T.mut, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Bekor qilish</button>
+      <button type="submit" disabled={loading} style={{ flex: 2, padding: 12, borderRadius: 8, border: 'none', backgroundColor: accent, color: T.bg, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
         {loading ? 'Saqlanmoqda...' : "O'zgartirishni saqlash"}
       </button>
     </div>
@@ -366,23 +373,35 @@ function SaveButtons({ loading, accent, onClose }: { loading: boolean; accent: s
 }
 
 const TABS = [
-  { key: 'prixod' as const, label: 'Prixod', color: '#2CA5E0', icon: <ArrowUpRight size={14} /> },
-  { key: 'rasxod' as const, label: 'Rasxod', color: '#FF5C5C', icon: <ArrowDownRight size={14} /> },
-  { key: 'refund' as const, label: 'Refund', color: '#F5A623', icon: <TrendingDown size={14} /> },
-  { key: 'inkassatsiya' as const, label: 'Inkassatsiya', color: '#9B59B6', icon: <Landmark size={14} /> },
+  { key: 'prixod' as const, label: 'Prixod', color: T.blue, icon: <ArrowUpRight size={14} /> },
+  { key: 'rasxod' as const, label: 'Rasxod', color: T.red, icon: <ArrowDownRight size={14} /> },
+  { key: 'refund' as const, label: 'Refund', color: T.orange, icon: <TrendingDown size={14} /> },
+  { key: 'inkassatsiya' as const, label: 'Inkassatsiya', color: T.purple, icon: <Landmark size={14} /> },
 ];
 
 type TabKey = 'prixod' | 'rasxod' | 'refund' | 'inkassatsiya';
+type ViewKey = 'kassa' | 'hisobot';
+type ReportKey = 'kitob' | 'jurnal' | 'qarz' | 'biletlar';
+
+const thStyle: React.CSSProperties = {
+  padding: '8px 12px', textAlign: 'left', color: T.dim, fontSize: 11, fontWeight: 600,
+  letterSpacing: '0.07em', textTransform: 'uppercase', borderBottom: `1px solid ${T.line}`,
+  position: 'sticky', top: 0, backgroundColor: '#0E1611', zIndex: 1,
+};
 
 export default function FinansistPage() {
+  const [view, setView] = useState<ViewKey>('kassa');
+  const [report, setReport] = useState<ReportKey>('kitob');
+  const [bookCur, setBookCur] = useState<Valyuta>('uzs');
   const [tab, setTab] = useState<TabKey>('prixod');
-  const [tableRowHover, setTableRowHover] = useState<string | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
   const [period, setPeriod] = useState('today');
   const [sanalganNaqd, setSanalganNaqd] = useState('');
   const [editPayment, setEditPayment] = useState<AviaPayment | null>(null);
   const [editRasxod, setEditRasxod] = useState<Rasxod | null>(null);
   const [movFilter, setMovFilter] = useState<'all' | 'prixod' | 'rasxod' | 'refund' | 'inkas'>('all');
   const [movSearch, setMovSearch] = useState('');
+  const [tixSearch, setTixSearch] = useState('');
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t); }, []);
 
@@ -390,13 +409,15 @@ export default function FinansistPage() {
   const { data: rasxodData, mutate: mutateRasxod } = useSWR('/api/avia/rasxod', fetcher, { refreshInterval: 60000 });
   const { data: refundData, mutate: mutateRefund } = useSWR('/api/avia/refund', fetcher, { refreshInterval: 60000 });
   const { data: inkData, mutate: mutateInk } = useSWR('/api/avia/inkassatsiya', fetcher, { refreshInterval: 60000 });
+  const { data: ticketsData } = useSWR('/api/avia/tickets', fetcher, { refreshInterval: 60000 });
   const { data: reportsData, mutate: mutateReports } = useSWR(`/api/avia/reports${periodQuery(period)}`, fetcher, { refreshInterval: 60000 });
 
-  // Hammasi (kassa kitobi/ostatok kümülatив hisob uchun) va davrga filtrlangani
+  // Hammasi (kassa kitobi/kümülatив hisob uchun) va davrga filtrlangani
   const allPayments = (paymentsData?.payments || []) as AviaPayment[];
   const allRasxod = (rasxodData?.rasxodlar || []) as Rasxod[];
   const allRefund = (refundData?.refundlar || []) as { id: string; sana: string; summa: number; mijozIsmi?: string; biletRaqam?: string }[];
   const allInk = (inkData?.inkassatsiya || []) as { id: string; sana: string; summa: number; turi?: string; airlineName?: string }[];
+  const allTickets = (ticketsData?.tickets || []) as AviaTicket[];
   const payments = allPayments.filter((p) => inPeriod(p.sana, period));
   const rasxodlar = allRasxod.filter((r) => inPeriod(r.sana, period));
   const refundlar = allRefund.filter((r) => inPeriod(r.sana, period));
@@ -405,357 +426,403 @@ export default function FinansistPage() {
   const debts = reportsData?.debts || [];
   const settledCount = reportsData?.kpi?.settledCount ?? 0;
 
-  const naqd = payments.filter((p: { tolovTuri: string }) => p.tolovTuri === 'naqd').reduce((s: number, p: { summa: number }) => s + p.summa, 0);
-  const plastik = payments.filter((p: { tolovTuri: string }) => p.tolovTuri === 'plastik').reduce((s: number, p: { summa: number }) => s + p.summa, 0);
-  const perechisleniya = payments.filter((p: { tolovTuri: string }) => p.tolovTuri === 'perechisleniya').reduce((s: number, p: { summa: number }) => s + p.summa, 0);
-  const jamiPrixod = naqd + plastik + perechisleniya;
-  const jamiRasxod = rasxodlar.reduce((s: number, r: { summa: number }) => s + r.summa, 0);
-  const jamiRefund = refundlar.reduce((s: number, r: { summa: number }) => s + r.summa, 0);
-  const jamiInk = inkPeriod.reduce((s: number, i: { summa: number }) => s + i.summa, 0);
-  const jamiKassaTopshirish = inkPeriod.filter((i: { turi?: string }) => i.turi === 'kassa').reduce((s: number, i: { summa: number }) => s + i.summa, 0);
-  const ostatok = jamiPrixod - jamiRasxod - jamiRefund - jamiInk;
+  // ===== Logika: UZS va USD alohida hisoblanadi =====
+  const uzsPay = payments.filter((p) => p.valyuta !== 'usd');
+  const usdPay = payments.filter((p) => p.valyuta === 'usd');
+  const byType = (arr: AviaPayment[], tt: PaymentType) => arr.filter((p) => p.tolovTuri === tt).reduce((s, p) => s + p.summa, 0);
+  const naqd = byType(uzsPay, 'naqd');
+  const plastik = byType(uzsPay, 'plastik');
+  const perechisleniya = byType(uzsPay, 'perechisleniya');
+  const uzsPrixod = naqd + plastik + perechisleniya;
+  const usdKirim = usdPay.reduce((s, p) => s + (p.summAsl || 0), 0);
 
-  // Naqd sverka: kutilgan naqd = naqd kirim − rasxod − refund − kassa topshirish
+  const jamiRasxod = rasxodlar.reduce((s, r) => s + r.summa, 0);
+  const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
+  const jamiInk = inkPeriod.reduce((s, i) => s + i.summa, 0);
+  const jamiKassaTopshirish = inkPeriod.filter((i) => i.turi === 'kassa').reduce((s, i) => s + i.summa, 0);
+  const uzsOstatka = uzsPrixod - jamiRasxod - jamiRefund - jamiInk;
+
+  // Naqd sverka (UZS): kutilgan naqd = UZS naqd kirim − rasxod − refund − kassa topshirish
   const kutilganNaqd = naqd - jamiRasxod - jamiRefund - jamiKassaTopshirish;
   const farq = sanalganNaqd === '' ? null : Number(sanalganNaqd) - kutilganNaqd;
 
   const refreshAll = () => { mutatePayments(); mutateRasxod(); mutateRefund(); mutateInk(); mutateReports(); };
 
-  const activeTab = TABS.find((t) => t.key === tab)!;
-
-  // ===== Birlashgan Kirim-Chiqim jurnali (hamma harakatlar bir joyda) =====
-  type Mov = {
-    id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'inkas';
-    sana: string; summa: number; label: string; sub?: string;
-    payment?: AviaPayment; rasxod?: Rasxod;
-  };
+  // ===== Birlashgan Kirim-Chiqim jurnali =====
+  type Mov = { id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'inkas'; sana: string; summa: number; label: string; sub?: string; payment?: AviaPayment; rasxod?: Rasxod };
   const movements: Mov[] = [
-    ...(payments as AviaPayment[]).map((p) => ({ id: p.id, kind: 'prixod' as const, sana: p.sana, summa: p.summa, label: p.mijozIsmi || p.biletRaqam || '—', sub: p.tolovTuri, payment: p })),
-    ...(rasxodlar as Rasxod[]).map((r) => ({ id: r.id, kind: 'rasxod' as const, sana: r.sana, summa: r.summa, label: r.sabab || 'Rasxod', rasxod: r })),
-    ...(refundlar as { id: string; sana: string; summa: number; mijozIsmi?: string; biletRaqam?: string }[]).map((r) => ({ id: r.id, kind: 'refund' as const, sana: r.sana, summa: r.summa, label: r.mijozIsmi || r.biletRaqam || 'Refund' })),
-    ...(inkPeriod as { id: string; sana: string; summa: number; turi?: string; airlineName?: string }[]).map((i) => ({ id: i.id, kind: 'inkas' as const, sana: i.sana, summa: i.summa, label: i.turi === 'kassa' ? 'Kassa topshirish' : (i.airlineName || 'Inkassatsiya') })),
+    ...payments.map((p) => ({ id: p.id, kind: 'prixod' as const, sana: p.sana, summa: p.summa, label: p.mijozIsmi || p.biletRaqam || '—', sub: `${p.tolovTuri}${p.valyuta === 'usd' ? ` · $${fmtUsd(p.summAsl || 0)}` : ''}`, payment: p })),
+    ...rasxodlar.map((r) => ({ id: r.id, kind: 'rasxod' as const, sana: r.sana, summa: r.summa, label: r.sabab || 'Rasxod', rasxod: r })),
+    ...refundlar.map((r) => ({ id: r.id, kind: 'refund' as const, sana: r.sana, summa: r.summa, label: r.mijozIsmi || r.biletRaqam || 'Refund' })),
+    ...inkPeriod.map((i) => ({ id: i.id, kind: 'inkas' as const, sana: i.sana, summa: i.summa, label: i.turi === 'kassa' ? 'Kassa topshirish' : (i.airlineName || 'Inkassatsiya') })),
   ].sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a));
   const movShown = movements.filter((m) => {
     if (movFilter !== 'all' && m.kind !== movFilter) return false;
-    if (movSearch) {
-      const q = movSearch.toLowerCase();
-      if (!(`${m.label} ${m.sub || ''} ${m.sana}`).toLowerCase().includes(q)) return false;
-    }
+    if (movSearch && !(`${m.label} ${m.sub || ''} ${m.sana}`).toLowerCase().includes(movSearch.toLowerCase())) return false;
     return true;
   });
   const MOV_META: Record<Mov['kind'], { label: string; color: string; sign: number }> = {
-    prixod: { label: 'Prixod', color: '#2CA5E0', sign: 1 },
-    rasxod: { label: 'Rasxod', color: '#FF5C5C', sign: -1 },
-    refund: { label: 'Refund', color: '#F5A623', sign: -1 },
-    inkas: { label: 'Inkas.', color: '#9B59B6', sign: -1 },
+    prixod: { label: 'Prixod', color: T.blue, sign: 1 },
+    rasxod: { label: 'Rasxod', color: T.red, sign: -1 },
+    refund: { label: 'Refund', color: T.orange, sign: -1 },
+    inkas: { label: 'Inkas.', color: T.purple, sign: -1 },
   };
 
-  // ===== Kassa kitobi: kunlik ostatok (boshi/oxiri) — hamma harakatlardan kümülатив =====
-  const dayMap = new Map<string, { kirim: number; chiqim: number }>();
-  const bump = (sana: string, kirim: number, chiqim: number) => {
-    const e = dayMap.get(sana) || { kirim: 0, chiqim: 0 };
-    e.kirim += kirim; e.chiqim += chiqim; dayMap.set(sana, e);
+  // ===== Kassa kitobi (valyuta bo'yicha): kunlik ostatok boshi/oxiri =====
+  const buildBook = (inflowOf: (p: AviaPayment) => number, withOutflow: boolean) => {
+    const dm = new Map<string, { kirim: number; chiqim: number }>();
+    const bump = (sana: string, kirim: number, chiqim: number) => {
+      const e = dm.get(sana) || { kirim: 0, chiqim: 0 };
+      e.kirim += kirim; e.chiqim += chiqim; dm.set(sana, e);
+    };
+    allPayments.forEach((p) => bump(p.sana, inflowOf(p), 0));
+    if (withOutflow) {
+      allRasxod.forEach((r) => bump(r.sana, 0, r.summa));
+      allRefund.forEach((r) => bump(r.sana, 0, r.summa));
+      allInk.forEach((i) => bump(i.sana, 0, i.summa));
+    }
+    const days = [...dm.keys()].sort();
+    return days.map((sana, idx) => {
+      const boshi = days.slice(0, idx).reduce((s, dd) => { const e = dm.get(dd)!; return s + e.kirim - e.chiqim; }, 0);
+      const { kirim, chiqim } = dm.get(sana)!;
+      return { sana, boshi, kirim, chiqim, oxiri: boshi + kirim - chiqim };
+    });
   };
-  allPayments.forEach((p) => bump(p.sana, p.summa, 0));
-  allRasxod.forEach((r) => bump(r.sana, 0, r.summa));
-  allRefund.forEach((r) => bump(r.sana, 0, r.summa));
-  allInk.forEach((i) => bump(i.sana, 0, i.summa));
-  const sortedDays = [...dayMap.keys()].sort();
-  const kassaKitobi = sortedDays.map((sana, idx) => {
-    // boshlang'ich ostatok = shu kungacha bo'lgan barcha kun (kirim − chiqim) yig'indisi
-    const boshi = sortedDays.slice(0, idx).reduce((s, dd) => {
-      const e = dayMap.get(dd)!;
-      return s + e.kirim - e.chiqim;
-    }, 0);
-    const { kirim, chiqim } = dayMap.get(sana)!;
-    return { sana, boshi, kirim, chiqim, oxiri: boshi + kirim - chiqim };
+  const uzsBook = buildBook((p) => (p.valyuta === 'usd' ? 0 : p.summa), true);
+  const usdBook = buildBook((p) => (p.valyuta === 'usd' ? (p.summAsl || 0) : 0), false);
+  const bookShown = (bookCur === 'usd' ? usdBook : uzsBook).filter((d) => inPeriod(d.sana, period)).reverse();
+  const fmtBook = (n: number) => (bookCur === 'usd' ? `$${fmtUsd(n)}` : formatMoney(n));
+
+  // Biletlar (qidiruv)
+  const tickets = allTickets
+    .filter((t) => inPeriod(t.sana, period))
+    .filter((t) => !tixSearch || `${t.yolovchi} ${t.biletRaqam} ${t.airlineName}`.toLowerCase().includes(tixSearch.toLowerCase()))
+    .sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a));
+
+  const activeTab = TABS.find((t) => t.key === tab)!;
+
+  // ===== UI helperlar =====
+  const segBtn = (active: boolean, color: string): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 10, fontSize: 13.5,
+    cursor: 'pointer', fontWeight: active ? 700 : 500, whiteSpace: 'nowrap',
+    border: `1px solid ${active ? color : T.line}`, backgroundColor: active ? color + '18' : T.card, color: active ? color : T.mut,
   });
-  const kassaKitobiShown = kassaKitobi.filter((d) => inPeriod(d.sana, period)).reverse();
-
-  const tableHeaderStyle: React.CSSProperties = {
-    padding: '8px 12px', textAlign: 'left', color: '#4A5C50', fontSize: 11, fontWeight: 600,
-    letterSpacing: '0.07em', textTransform: 'uppercase', borderBottom: '1px solid #1E2E24',
-  };
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+      {/* Sarlavha + davr */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>Finansist</h1>
-          <div style={{ color: '#4A5C50', fontSize: 12, marginTop: 4 }}>Davr: {periodLabel(period)}</div>
+          <h1 style={{ color: T.text, fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>Finansist</h1>
+          <div style={{ color: T.dim, fontSize: 12, marginTop: 4 }}>Davr: {periodLabel(period)}</div>
         </div>
         <PeriodFilter value={period} onChange={setPeriod} />
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #1E2E24', marginBottom: 24, position: 'relative' }}>
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', background: 'none',
-            border: 'none', cursor: 'pointer', color: tab === t.key ? t.color : '#4A5C50',
-            fontSize: 13, fontWeight: tab === t.key ? 700 : 500, transition: 'color 0.15s ease', position: 'relative',
-          }}>
-            <span>{t.icon}</span>
-            {t.label}
-            <div style={{
-              position: 'absolute', bottom: -1, left: 0, right: 0, height: 2, backgroundColor: t.color,
-              borderRadius: '2px 2px 0 0', opacity: tab === t.key ? 1 : 0,
-              transform: tab === t.key ? 'scaleX(1)' : 'scaleX(0)', transition: 'opacity 0.2s ease, transform 0.2s ease',
-            }} />
-          </button>
-        ))}
+      {/* Asosiy ko'rinish: Kassa | Hisobotlar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        <button onClick={() => setView('kassa')} style={segBtn(view === 'kassa', T.blue)}><Wallet size={16} /> Kassa</button>
+        <button onClick={() => setView('hisobot')} style={segBtn(view === 'hisobot', T.green)}><ReceiptText size={16} /> Hisobotlar</button>
       </div>
 
-      <div className="split-2">
-        {/* Left: active form */}
-        <div style={{
-          backgroundColor: '#141F19', border: '1px solid #1E2E24',
-          borderTop: `2px solid ${activeTab.color}50`, borderRadius: 14, padding: 24,
-        }}>
-          <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: activeTab.color }}>{activeTab.icon}</span>
-            {tab === 'prixod' ? 'Yangi Prixod / Obmen'
-              : tab === 'rasxod' ? 'Rasxod (Chiqim)'
-              : tab === 'refund' ? 'Refund (Pul qaytarish)'
-              : 'Inkassatsiya (aviakompaniyaga)'}
-          </h3>
-          {tab === 'prixod' && <PaymentForm onSuccess={refreshAll} />}
-          {tab === 'rasxod' && <RasxodForm onSuccess={refreshAll} />}
-          {tab === 'refund' && <RefundForm onSuccess={refreshAll} />}
-          {tab === 'inkassatsiya' && <InkassatsiyaTab onSuccess={refreshAll} />}
+      {/* Ostatka strip — UZS va USD (har ikkala ko'rinishda) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 18 }}>
+        <div style={{ ...card, borderTop: `2px solid ${uzsOstatka >= 0 ? T.green : T.red}`, padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em' }}>
+              <Wallet size={15} style={{ color: uzsOstatka >= 0 ? T.green : T.red }} /> UZS OSTATKA
+            </div>
+            <span style={{ color: uzsOstatka >= 0 ? T.green : T.red, fontSize: 12, fontWeight: 600 }}>{uzsOstatka >= 0 ? 'Musbat' : 'Manfiy'}</span>
+          </div>
+          <div style={{ color: uzsOstatka >= 0 ? T.green : T.red, fontSize: 28, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1.1, marginBottom: 10 }}>{formatMoney(uzsOstatka)} so&apos;m</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, flexWrap: 'wrap' }}>
+            <span style={{ color: T.blue, fontWeight: 600 }}>+{formatMoney(uzsPrixod)}</span><span style={{ color: T.dim }}>prixod</span>
+            <span style={{ color: T.dim }}>−</span><span style={{ color: T.red, fontWeight: 600 }}>{formatMoney(jamiRasxod)}</span><span style={{ color: T.dim }}>rasxod</span>
+            <span style={{ color: T.dim }}>−</span><span style={{ color: T.orange, fontWeight: 600 }}>{formatMoney(jamiRefund)}</span><span style={{ color: T.dim }}>refund</span>
+            <span style={{ color: T.dim }}>−</span><span style={{ color: T.purple, fontWeight: 600 }}>{formatMoney(jamiInk)}</span><span style={{ color: T.dim }}>inkas.</span>
+          </div>
         </div>
+        <div style={{ ...card, borderTop: `2px solid ${T.blue}`, padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 6 }}>
+            <DollarSign size={15} style={{ color: T.blue }} /> USD OSTATKA (kassada)
+          </div>
+          <div style={{ color: T.blue, fontSize: 28, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1.1, marginBottom: 10 }}>${fmtUsd(usdKirim)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: T.dim }}>
+            <ArrowLeftRight size={13} /> {usdPay.length} ta USD operatsiya / obmen
+          </div>
+        </div>
+      </div>
 
-        {/* Right: balance + monitoring */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Kunlik balans (ostatok) */}
-          <div style={{
-            backgroundColor: '#141F19',
-            border: `1px solid ${ostatok >= 0 ? '#7CFF4F30' : '#FF5C5C30'}`,
-            borderRadius: 14, padding: '20px 24px',
-            borderTop: `2px solid ${ostatok >= 0 ? '#7CFF4F' : '#FF5C5C'}`,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ color: '#4A5C50', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em' }}>KUNLIK BALANS (OSTATOK)</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: ostatok >= 0 ? '#7CFF4F' : '#FF5C5C', fontSize: 12, fontWeight: 600 }}>
-                {ostatok >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                {ostatok >= 0 ? 'Musbat' : 'Manfiy'}
-              </div>
+      {view === 'kassa' ? (
+        <div className="split-2">
+          {/* Chap: kiritish formasi (entry) */}
+          <div style={{ ...card, borderTop: `2px solid ${activeTab.color}50`, padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', borderBottom: `1px solid ${T.line}`, position: 'relative', overflowX: 'auto' }}>
+              {TABS.map((t) => (
+                <button key={t.key} onClick={() => setTab(t.key)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '12px 18px', background: 'none', border: 'none',
+                  cursor: 'pointer', color: tab === t.key ? t.color : T.dim, fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
+                  whiteSpace: 'nowrap', borderBottom: `2px solid ${tab === t.key ? t.color : 'transparent'}`, marginBottom: -1,
+                }}>
+                  <span>{t.icon}</span>{t.label}
+                </button>
+              ))}
             </div>
-            <div style={{
-              color: ostatok >= 0 ? '#7CFF4F' : '#FF5C5C', fontSize: 30, fontWeight: 800,
-              fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1.1, marginBottom: 12,
-            }}>
-              {formatMoney(ostatok)} so&apos;m
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, flexWrap: 'wrap' }}>
-              <span style={{ color: '#2CA5E0', fontWeight: 600 }}>+{formatMoney(jamiPrixod)}</span>
-              <span style={{ color: '#4A5C50' }}>prixod</span>
-              <span style={{ color: '#4A5C50' }}>−</span>
-              <span style={{ color: '#FF5C5C', fontWeight: 600 }}>{formatMoney(jamiRasxod)}</span>
-              <span style={{ color: '#4A5C50' }}>rasxod</span>
-              <span style={{ color: '#4A5C50' }}>−</span>
-              <span style={{ color: '#F5A623', fontWeight: 600 }}>{formatMoney(jamiRefund)}</span>
-              <span style={{ color: '#4A5C50' }}>refund</span>
-              <span style={{ color: '#4A5C50' }}>−</span>
-              <span style={{ color: '#9B59B6', fontWeight: 600 }}>{formatMoney(jamiInk)}</span>
-              <span style={{ color: '#4A5C50' }}>inkas.</span>
+            <div style={{ padding: 22 }}>
+              <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: activeTab.color }}>{activeTab.icon}</span>
+                {tab === 'prixod' ? 'Yangi Prixod / Obmen' : tab === 'rasxod' ? 'Rasxod (Chiqim)' : tab === 'refund' ? 'Refund (Pul qaytarish)' : 'Inkassatsiya'}
+              </h3>
+              {tab === 'prixod' && <PaymentForm onSuccess={refreshAll} />}
+              {tab === 'rasxod' && <RasxodForm onSuccess={refreshAll} />}
+              {tab === 'refund' && <RefundForm onSuccess={refreshAll} />}
+              {tab === 'inkassatsiya' && <InkassatsiyaTab onSuccess={refreshAll} />}
             </div>
           </div>
 
-          {/* Payment method KPIs */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            {[
-              { label: 'Naqd', value: naqd, color: '#7CFF4F', icon: <Banknote size={18} /> },
-              { label: 'Plastik', value: plastik, color: '#2CA5E0', icon: <Smartphone size={18} /> },
-              { label: 'Perechisl.', value: perechisleniya, color: '#9B59B6', icon: <Building2 size={18} /> },
-            ].map((item) => (
-              <div key={item.label} style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: '14px 12px', textAlign: 'center' }}>
-                <div style={{ color: item.color, marginBottom: 6, display: 'flex', justifyContent: 'center' }}>{item.icon}</div>
-                <div style={{ color: '#4A5C50', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 4 }}>{item.label.toUpperCase()}</div>
-                <div style={{ color: item.color, fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.value)}</div>
+          {/* O'ng: kunlik ko'rsatkichlar + naqd sverka */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              {[
+                { label: 'Naqd', value: naqd, color: T.green, icon: <Banknote size={18} /> },
+                { label: 'Plastik', value: plastik, color: T.blue, icon: <Smartphone size={18} /> },
+                { label: 'Perechisl.', value: perechisleniya, color: T.purple, icon: <Building2 size={18} /> },
+              ].map((item) => (
+                <div key={item.label} style={{ ...card, padding: '14px 12px', textAlign: 'center' }}>
+                  <div style={{ color: item.color, marginBottom: 6, display: 'flex', justifyContent: 'center' }}>{item.icon}</div>
+                  <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 4 }}>{item.label.toUpperCase()}</div>
+                  <div style={{ color: item.color, fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(item.value)}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              {[
+                { label: 'RASXOD', value: jamiRasxod, color: T.red },
+                { label: 'REFUND', value: jamiRefund, color: T.orange },
+                { label: 'INKAS.', value: jamiInk, color: T.purple },
+              ].map((x) => (
+                <div key={x.label} style={{ ...card, padding: '12px 14px', borderColor: x.color + '25' }}>
+                  <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em' }}>{x.label}</div>
+                  <div style={{ color: x.color, fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>−{formatMoney(x.value)}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Naqd sverka */}
+            <div style={{ ...card, padding: 18 }}>
+              <h3 style={{ color: T.text, fontSize: 14, fontWeight: 700, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Calculator size={16} style={{ color: T.blue }} /> Naqd Sverka (UZS)
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={labelStyle}>Sanalgan naqd (qo&apos;lda)</label>
+                  <input type="number" value={sanalganNaqd} onChange={(e) => setSanalganNaqd(e.target.value)} placeholder="0" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Kutilgan naqd (tizim)</label>
+                  <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: T.mut }}>{formatMoney(kutilganNaqd)}</div>
+                </div>
               </div>
+              {farq !== null && (
+                <div style={{
+                  padding: '10px 14px', borderRadius: 9, fontSize: 13, fontWeight: 700,
+                  backgroundColor: farq === 0 ? '#7CFF4F12' : '#FF5C5C12', border: `1px solid ${farq === 0 ? T.green + '30' : T.red + '30'}`,
+                  color: farq === 0 ? T.green : T.red, display: 'flex', justifyContent: 'space-between',
+                }}>
+                  <span>{farq === 0 ? '✓ To\'g\'ri keladi' : farq > 0 ? 'Ortiqcha' : 'Kam'}</span>
+                  <span>{farq > 0 ? '+' : ''}{formatMoney(farq)} so&apos;m</span>
+                </div>
+              )}
+              <div style={{ color: T.dim, fontSize: 11, marginTop: 10 }}>Kutilgan = Naqd − Rasxod − Refund − Kassa topshirish</div>
+            </div>
+
+            {/* To'langan biletlar */}
+            <div style={{ ...card, padding: '14px 18px', borderColor: T.green + '25', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <CheckCircle2 size={20} style={{ color: T.green, flexShrink: 0 }} />
+              <div>
+                <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em' }}>TO&apos;LANGAN BILETLAR (qarz yopilgan)</div>
+                <div style={{ color: T.green, fontSize: 18, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{settledCount} ta</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ===== HISOBOTLAR ko'rinishi ===== */
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            {([
+              { k: 'kitob' as const, l: 'Kassa kitobi', icon: <BookOpen size={15} /> },
+              { k: 'jurnal' as const, l: 'Kirim-Chiqim', icon: <ArrowLeftRight size={15} /> },
+              { k: 'qarz' as const, l: 'Qarzdorlar', icon: <Users size={15} /> },
+              { k: 'biletlar' as const, l: 'Biletlar', icon: <Plane size={15} /> },
+            ]).map((r) => (
+              <button key={r.k} onClick={() => setReport(r.k)} style={segBtn(report === r.k, T.green)}>{r.icon}{r.l}</button>
             ))}
           </div>
 
-          {/* Rasxod / Refund / Inkassatsiya (bugun) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #FF5C5C25', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ color: '#4A5C50', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em' }}>RASXOD</div>
-              <div style={{ color: '#FF5C5C', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>−{formatMoney(jamiRasxod)}</div>
-            </div>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #F5A62325', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ color: '#4A5C50', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em' }}>REFUND</div>
-              <div style={{ color: '#F5A623', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>−{formatMoney(jamiRefund)}</div>
-            </div>
-            <div style={{ backgroundColor: '#141F19', border: '1px solid #9B59B625', borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ color: '#4A5C50', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em' }}>INKAS.</div>
-              <div style={{ color: '#9B59B6', fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>−{formatMoney(jamiInk)}</div>
-            </div>
-          </div>
-
-          {/* Naqd sverka (qo'ldagi pul ↔ tizim) */}
-          <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 18 }}>
-            <h3 style={{ color: '#fff', fontSize: 14, fontWeight: 700, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Calculator size={16} style={{ color: '#2CA5E0' }} /> Naqd Sverka
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={labelStyle}>Sanalgan naqd (qo&apos;lda)</label>
-                <input type="number" value={sanalganNaqd} onChange={(e) => setSanalganNaqd(e.target.value)} placeholder="0" style={inputStyle} />
+          {/* Kassa kitobi */}
+          {report === 'kitob' && (
+            <div style={{ ...card, padding: 20, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <BookOpen size={16} style={{ color: T.green }} /> Kassa kitobi — kunlik ostatok
+                </h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {(['uzs', 'usd'] as const).map((c) => (
+                    <button key={c} onClick={() => setBookCur(c)} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: bookCur === c ? 700 : 500, cursor: 'pointer', border: `1px solid ${bookCur === c ? T.blue : T.line}`, backgroundColor: bookCur === c ? T.blue + '18' : 'transparent', color: bookCur === c ? T.blue : T.mut }}>{c.toUpperCase()}</button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label style={labelStyle}>Kutilgan naqd (tizim)</label>
-                <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#8A9A8F' }}>{formatMoney(kutilganNaqd)}</div>
-              </div>
-            </div>
-            {farq !== null && (
-              <div style={{
-                padding: '10px 14px', borderRadius: 9, fontSize: 13, fontWeight: 700,
-                backgroundColor: farq === 0 ? '#7CFF4F12' : '#FF5C5C12',
-                border: `1px solid ${farq === 0 ? '#7CFF4F30' : '#FF5C5C30'}`,
-                color: farq === 0 ? '#7CFF4F' : '#FF5C5C', display: 'flex', justifyContent: 'space-between',
-              }}>
-                <span>{farq === 0 ? '✓ To\'g\'ri keladi' : farq > 0 ? 'Ortiqcha' : 'Kam'}</span>
-                <span>{farq > 0 ? '+' : ''}{formatMoney(farq)} so&apos;m</span>
-              </div>
-            )}
-            <div style={{ color: '#4A5C50', fontSize: 11, marginTop: 10 }}>Kutilgan = Naqd − Rasxod − Refund − Kassa topshirish</div>
-          </div>
-
-          {/* Bajarildi — to'langan biletlar */}
-          <div style={{ backgroundColor: '#141F19', border: '1px solid #7CFF4F25', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <CheckCircle2 size={20} style={{ color: '#7CFF4F', flexShrink: 0 }} />
-            <div>
-              <div style={{ color: '#4A5C50', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em' }}>TO&apos;LANGAN BILETLAR (qarz yopilgan)</div>
-              <div style={{ color: '#7CFF4F', fontSize: 18, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{settledCount} ta</div>
-            </div>
-          </div>
-
-          {/* Bilet qarzlari */}
-          <AviaDebtTable debts={debts} />
-
-          {/* Kassa kitobi — kunlik ostatok (boshi/oxiri) sanalar bilan */}
-          <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
-            <h3 style={{ color: '#fff', fontSize: 14, fontWeight: 700, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Calculator size={16} style={{ color: '#7CFF4F' }} /> Kassa kitobi — kunlik ostatok
-            </h3>
-            {kassaKitobiShown.length === 0 ? (
-              <div style={{ color: '#4A5C50', textAlign: 'center', padding: '20px 0', fontSize: 13 }}>Ma&apos;lumot yo&apos;q</div>
-            ) : (
-              <div style={{ maxHeight: 340, overflowY: 'auto', overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
-                  <thead>
-                    <tr>
-                      <th style={tableHeaderStyle}>Sana</th>
-                      <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Ostatok boshi</th>
-                      <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Kirim</th>
-                      <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Chiqim</th>
-                      <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Ostatok oxiri</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {kassaKitobiShown.map((d) => (
-                      <tr key={d.sana} style={{ borderBottom: '1px solid #1E2E24' }}>
-                        <td style={{ padding: '8px 12px', color: '#fff', fontSize: 12.5, fontWeight: 600 }}>{d.sana}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#8A9A8F', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.boshi)}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#2CA5E0', fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>+{formatMoney(d.kirim)}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#FF5C5C', fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>−{formatMoney(d.chiqim)}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', color: d.oxiri >= 0 ? '#7CFF4F' : '#FF5C5C', fontSize: 13, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(d.oxiri)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Kirim-Chiqim — barcha harakatlar (prixod/rasxod/refund/inkassatsiya) */}
-          <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-              <h3 style={{ color: '#fff', fontSize: 14, fontWeight: 700, margin: 0 }}>Kirim-Chiqim — {periodLabel(period)}</h3>
-              <span style={{ color: '#4A5C50', fontSize: 11, fontWeight: 600 }}>{movShown.length} ta</span>
-            </div>
-            <input value={movSearch} onChange={(e) => setMovSearch(e.target.value)} placeholder="Qidirish: mijoz, bilet, izoh, sana…"
-              style={{ ...inputStyle, marginBottom: 10 }} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-              {([
-                { k: 'all' as const, l: 'Hammasi', c: '#8A9A8F' },
-                { k: 'prixod' as const, l: 'Prixod', c: '#2CA5E0' },
-                { k: 'rasxod' as const, l: 'Rasxod', c: '#FF5C5C' },
-                { k: 'refund' as const, l: 'Refund', c: '#F5A623' },
-                { k: 'inkas' as const, l: 'Inkas.', c: '#9B59B6' },
-              ]).map((f) => {
-                const on = movFilter === f.k;
-                return (
-                  <button key={f.k} onClick={() => setMovFilter(f.k)} style={{ padding: '5px 11px', borderRadius: 7, fontSize: 11, fontWeight: on ? 700 : 500, cursor: 'pointer', border: `1px solid ${on ? f.c : '#1E2E24'}`, backgroundColor: on ? f.c + '18' : 'transparent', color: on ? f.c : '#4A5C50' }}>{f.l}</button>
-                );
-              })}
-            </div>
-            {movShown.length === 0 ? (
-              <div style={{ color: '#4A5C50', textAlign: 'center', padding: '24px 0', fontSize: 13 }}>Harakat yo&apos;q</div>
-            ) : (
-              <div style={{ maxHeight: 420, overflowY: 'auto', overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 460 }}>
-                  <thead>
-                    <tr>
-                      <th style={tableHeaderStyle}>Sana</th>
-                      <th style={{ ...tableHeaderStyle, textAlign: 'center' }}>Tur</th>
-                      <th style={tableHeaderStyle}>Tavsif</th>
-                      <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Summa</th>
-                      <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Amal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movShown.map((m) => {
-                      const meta = MOV_META[m.kind];
-                      const remaining = ticketEditRemainingMs(m, now);
-                      const canEdit = (m.kind === 'prixod' || m.kind === 'rasxod') && remaining > 0;
-                      const soat = Math.floor(remaining / 3600000);
-                      return (
-                        <tr key={m.id}
-                          onMouseEnter={() => setTableRowHover(m.id)}
-                          onMouseLeave={() => setTableRowHover(null)}
-                          style={{ borderBottom: '1px solid #1E2E24', backgroundColor: tableRowHover === m.id ? '#1E2E2450' : 'transparent', transition: 'background-color 0.1s ease' }}>
-                          <td style={{ padding: '8px 12px', color: '#8A9A8F', fontSize: 12 }}>{m.sana}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                            <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: meta.color + '18', color: meta.color, border: `1px solid ${meta.color}30` }}>{meta.label}</span>
-                          </td>
-                          <td style={{ padding: '8px 12px', color: '#fff', fontSize: 12.5 }}>
-                            {m.label}{m.sub ? <span style={{ color: '#4A5C50', fontSize: 11 }}> · {m.sub}</span> : null}
-                          </td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: meta.color }}>
-                            {meta.sign > 0 ? '+' : '−'}{formatMoney(m.summa)}
-                          </td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>
-                            {(m.kind === 'prixod' || m.kind === 'rasxod') ? (
-                              canEdit ? (
-                                <button onClick={() => (m.kind === 'prixod' ? setEditPayment(m.payment!) : setEditRasxod(m.rasxod!))}
-                                  title={`${soat} soat ichida tahrirlash mumkin`}
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', backgroundColor: '#F5A62318', color: '#F5A623', border: '1px solid #F5A62340' }}>
-                                  <Pencil size={10} /> {soat}s
-                                </button>
-                              ) : (
-                                <span title="48 soatlik muddat tugagan" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#4A5C50', fontSize: 11 }}><Lock size={10} /></span>
-                              )
-                            ) : <span style={{ color: '#2A3A30', fontSize: 11 }}>—</span>}
-                          </td>
+              {bookShown.length === 0 ? (
+                <div style={{ color: T.dim, textAlign: 'center', padding: '28px 0', fontSize: 13 }}>Ma&apos;lumot yo&apos;q</div>
+              ) : (
+                <div style={{ maxHeight: '58vh', overflowY: 'auto', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                    <thead><tr>
+                      <th style={thStyle}>Sana</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Ostatok boshi</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Kirim</th>
+                      {bookCur === 'uzs' && <th style={{ ...thStyle, textAlign: 'right' }}>Chiqim</th>}
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Ostatok oxiri</th>
+                    </tr></thead>
+                    <tbody>
+                      {bookShown.map((d) => (
+                        <tr key={d.sana} style={{ borderBottom: `1px solid ${T.line}` }}>
+                          <td style={{ padding: '9px 12px', color: T.text, fontSize: 12.5, fontWeight: 600 }}>{d.sana}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', color: T.mut, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{fmtBook(d.boshi)}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', color: T.blue, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>+{fmtBook(d.kirim)}</td>
+                          {bookCur === 'uzs' && <td style={{ padding: '9px 12px', textAlign: 'right', color: T.red, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>−{fmtBook(d.chiqim)}</td>}
+                          <td style={{ padding: '9px 12px', textAlign: 'right', color: d.oxiri >= 0 ? T.green : T.red, fontSize: 13, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{fmtBook(d.oxiri)}</td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
-      {editPayment && (
-        <PaymentEditModal payment={editPayment} onClose={() => setEditPayment(null)} onSaved={refreshAll} />
+          {/* Kirim-Chiqim jurnali */}
+          {report === 'jurnal' && (
+            <div style={{ ...card, padding: 20, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ArrowLeftRight size={16} style={{ color: T.blue }} /> Kirim-Chiqim — {periodLabel(period)}
+                </h3>
+                <span style={{ color: T.dim, fontSize: 11, fontWeight: 600 }}>{movShown.length} ta</span>
+              </div>
+              <div style={{ position: 'relative', marginBottom: 10 }}>
+                <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.dim }} />
+                <input value={movSearch} onChange={(e) => setMovSearch(e.target.value)} placeholder="Qidirish: mijoz, bilet, izoh, sana…" style={{ ...inputStyle, paddingLeft: 34 }} />
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                {([
+                  { k: 'all' as const, l: 'Hammasi', c: T.mut },
+                  { k: 'prixod' as const, l: 'Prixod', c: T.blue },
+                  { k: 'rasxod' as const, l: 'Rasxod', c: T.red },
+                  { k: 'refund' as const, l: 'Refund', c: T.orange },
+                  { k: 'inkas' as const, l: 'Inkas.', c: T.purple },
+                ]).map((f) => {
+                  const on = movFilter === f.k;
+                  return <button key={f.k} onClick={() => setMovFilter(f.k)} style={{ padding: '5px 11px', borderRadius: 7, fontSize: 11, fontWeight: on ? 700 : 500, cursor: 'pointer', border: `1px solid ${on ? f.c : T.line}`, backgroundColor: on ? f.c + '18' : 'transparent', color: on ? f.c : T.dim }}>{f.l}</button>;
+                })}
+              </div>
+              {movShown.length === 0 ? (
+                <div style={{ color: T.dim, textAlign: 'center', padding: '28px 0', fontSize: 13 }}>Harakat yo&apos;q</div>
+              ) : (
+                <div style={{ maxHeight: '54vh', overflowY: 'auto', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
+                    <thead><tr>
+                      <th style={thStyle}>Sana</th>
+                      <th style={{ ...thStyle, textAlign: 'center' }}>Tur</th>
+                      <th style={thStyle}>Tavsif</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Summa</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Amal</th>
+                    </tr></thead>
+                    <tbody>
+                      {movShown.map((m) => {
+                        const meta = MOV_META[m.kind];
+                        const remaining = ticketEditRemainingMs(m, now);
+                        const canEdit = (m.kind === 'prixod' || m.kind === 'rasxod') && remaining > 0;
+                        const soat = Math.floor(remaining / 3600000);
+                        return (
+                          <tr key={m.id} onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover(null)} style={{ borderBottom: `1px solid ${T.line}`, backgroundColor: hover === m.id ? '#1E2E2450' : 'transparent' }}>
+                            <td style={{ padding: '8px 12px', color: T.mut, fontSize: 12 }}>{m.sana}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                              <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, backgroundColor: meta.color + '18', color: meta.color, border: `1px solid ${meta.color}30` }}>{meta.label}</span>
+                            </td>
+                            <td style={{ padding: '8px 12px', color: T.text, fontSize: 12.5 }}>{m.label}{m.sub ? <span style={{ color: T.dim, fontSize: 11 }}> · {m.sub}</span> : null}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: meta.color }}>{meta.sign > 0 ? '+' : '−'}{formatMoney(m.summa)}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                              {(m.kind === 'prixod' || m.kind === 'rasxod') ? (
+                                canEdit ? (
+                                  <button onClick={() => (m.kind === 'prixod' ? setEditPayment(m.payment!) : setEditRasxod(m.rasxod!))} title={`${soat} soat ichida tahrirlash mumkin`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', backgroundColor: '#F5A62318', color: T.orange, border: `1px solid ${T.orange}40` }}>
+                                    <Pencil size={10} /> {soat}s
+                                  </button>
+                                ) : <span title="48 soatlik muddat tugagan" style={{ display: 'inline-flex', alignItems: 'center', color: T.dim }}><Lock size={12} /></span>
+                              ) : <span style={{ color: '#2A3A30', fontSize: 11 }}>—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Qarzdorlar */}
+          {report === 'qarz' && <AviaDebtTable debts={debts} />}
+
+          {/* Biletlar jadvali */}
+          {report === 'biletlar' && (
+            <div style={{ ...card, padding: 20, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Plane size={16} style={{ color: T.orange }} /> Biletlar — {periodLabel(period)}
+                </h3>
+                <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 280 }}>
+                  <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.dim }} />
+                  <input value={tixSearch} onChange={(e) => setTixSearch(e.target.value)} placeholder="Yo'lovchi yoki bilet…" style={{ ...inputStyle, paddingLeft: 34 }} />
+                </div>
+              </div>
+              {tickets.length === 0 ? (
+                <div style={{ color: T.dim, textAlign: 'center', padding: '28px 0', fontSize: 13 }}>{tixSearch ? 'Topilmadi' : 'Bilet yo\'q'}</div>
+              ) : (
+                <div style={{ maxHeight: '58vh', overflowY: 'auto', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+                    <thead><tr>
+                      <th style={thStyle}>Sana</th>
+                      <th style={thStyle}>Bilet</th>
+                      <th style={thStyle}>Yo&apos;lovchi</th>
+                      <th style={thStyle}>Aviakompaniya</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Tarif</th>
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Sotish narxi</th>
+                    </tr></thead>
+                    <tbody>
+                      {tickets.map((t) => (
+                        <tr key={t.id} style={{ borderBottom: `1px solid ${T.line}` }}>
+                          <td style={{ padding: '8px 12px', color: T.mut, fontSize: 12 }}>{t.sana}</td>
+                          <td style={{ padding: '8px 12px', color: T.text, fontSize: 12, fontFamily: 'var(--font-geist-mono)' }}>{t.biletRaqam}</td>
+                          <td style={{ padding: '8px 12px', color: T.text, fontSize: 13 }}>{t.yolovchi}</td>
+                          <td style={{ padding: '8px 12px', color: T.mut, fontSize: 12.5 }}>{t.airlineName}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: T.mut, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(t.tarif)}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: T.green, fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(t.sotishNarxi)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
-      {editRasxod && (
-        <RasxodEditModal rasxod={editRasxod} onClose={() => setEditRasxod(null)} onSaved={refreshAll} />
-      )}
+
+      {editPayment && <PaymentEditModal payment={editPayment} onClose={() => setEditPayment(null)} onSaved={refreshAll} />}
+      {editRasxod && <RasxodEditModal rasxod={editRasxod} onClose={() => setEditRasxod(null)} onSaved={refreshAll} />}
     </div>
   );
 }
