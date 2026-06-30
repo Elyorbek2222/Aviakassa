@@ -53,11 +53,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const today = new Date().toISOString().split('T')[0];
 
+    // Obmen: USD + biletsiz bo'lsa va mijoz nomi bo'sh bo'lsa — "Obmen" deb belgilanadi
+    const mijozIsmi = body.mijozIsmi || (body.valyuta === 'usd' && !body.biletRaqam ? 'Obmen' : '');
+
     const payment: AviaPayment = {
       id: `PAY-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       sana: today,
       biletRaqam: body.biletRaqam,
-      mijozIsmi: body.mijozIsmi,
+      mijozIsmi,
       valyuta: body.valyuta || 'uzs',
       summAsl: body.valyuta === 'usd' ? Number(body.summAsl) : undefined,
       kurs: body.valyuta === 'usd' ? Number(body.kurs) : undefined,
