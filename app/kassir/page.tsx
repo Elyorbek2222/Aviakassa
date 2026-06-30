@@ -5,15 +5,15 @@ import useSWR from 'swr';
 import {
   Banknote, Smartphone, Building2, ArrowUpRight, ArrowDownRight,
   TrendingDown, CheckCircle2, Landmark, Calculator, Pencil, Lock, X,
-  Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText,
+  Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText, ArrowRight,
 } from 'lucide-react';
 import { formatMoney, ticketEditRemainingMs, ticketCreatedAtMs } from '@/lib/utils';
-import { AIRLINE_LABELS, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket } from '@/types/avia';
+import { AIRLINE_LABELS, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket, type Obmen } from '@/types/avia';
 import AviaDebtTable from '@/components/avia/AviaDebtTable';
 import RasxodForm from '@/components/avia/RasxodForm';
 import RefundForm from '@/components/avia/RefundForm';
 import PeriodFilter from '@/components/avia/PeriodFilter';
-import { periodQuery, periodLabel, inPeriod } from '@/lib/period';
+import { periodQuery, periodLabel, periodRange, inPeriod } from '@/lib/period';
 import { inputStyle, labelStyle, MessageBox } from '@/components/avia/formStyles';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -21,7 +21,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // ===== Tema tokenlari =====
 const T = {
   bg: '#0A0F0D', card: '#141F19', line: '#1E2E24', mut: '#8A9A8F', dim: '#4A5C50',
-  text: '#fff', green: '#7CFF4F', blue: '#2CA5E0', red: '#FF5C5C', orange: '#F5A623', purple: '#9B59B6',
+  text: '#fff', green: '#7CFF4F', blue: '#2CA5E0', red: '#FF5C5C', orange: '#F5A623', purple: '#9B59B6', teal: '#14B8A6',
 };
 const ACCENT = T.blue;
 const card: React.CSSProperties = { backgroundColor: T.card, border: `1px solid ${T.line}`, borderRadius: 14, padding: 20 };
@@ -221,6 +221,64 @@ function InkassatsiyaTab({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+// Obmen: kassadagi USD ni som ga o'tkazish (USD chiqadi, UZS kiradi)
+function ObmenForm({ onSuccess, usdMavjud }: { onSuccess: () => void; usdMavjud: number }) {
+  const [usd, setUsd] = useState('');
+  const [kurs, setKurs] = useState('');
+  const [izoh, setIzoh] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const uzs = usd && kurs ? Math.round(Number(usd) * Number(kurs)) : 0;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true); setMessage('');
+    try {
+      const res = await fetch('/api/avia/obmen', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usdSumma: Number(usd), kurs: Number(kurs), uzsSumma: uzs, izoh: izoh || undefined }),
+      });
+      if (res.ok) { setMessage('Obmen saqlandi!'); setUsd(''); setKurs(''); setIzoh(''); onSuccess(); }
+      else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik yuz berdi'); }
+    } catch { setMessage("Serverga ulanib bo'lmadi"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={{ padding: '10px 14px', borderRadius: 9, backgroundColor: T.teal + '12', border: `1px solid ${T.teal}30`, marginBottom: 16, fontSize: 12.5, color: T.mut }}>
+        Kassada mavjud USD: <b style={{ color: T.teal }}>${fmtUsd(usdMavjud)}</b>. Obmen qilingach USD kamayadi, so&apos;m ko&apos;payadi.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div>
+          <label style={labelStyle}>USD summa</label>
+          <input type="number" value={usd} onChange={(e) => setUsd(e.target.value)} placeholder="0" required style={inputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Kurs</label>
+          <input type="number" value={kurs} onChange={(e) => setKurs(e.target.value)} placeholder="12800" required style={inputStyle} />
+        </div>
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Olinadigan so&apos;m (avtomatik)</label>
+        <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: T.green, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(uzs)} so&apos;m</div>
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Izoh</label>
+        <input type="text" value={izoh} onChange={(e) => setIzoh(e.target.value)} placeholder="Qayerda obmen qilindi?" style={inputStyle} />
+      </div>
+      <MessageBox message={message} />
+      <button type="submit" disabled={loading} style={{
+        width: '100%', padding: '12px 20px', borderRadius: 9, border: `1px solid ${T.teal}`,
+        backgroundColor: T.teal + '20', color: T.teal, fontSize: 14, fontWeight: 700,
+        cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, letterSpacing: '0.04em',
+      }}>
+        {loading ? 'Saqlanmoqda...' : '⇄ Obmen qilish (USD → som)'}
+      </button>
+    </form>
+  );
+}
+
 // ===== Tahrirlash modallari (Finans otdel: 48 soat ichida xatoni to'g'irlash) =====
 
 function ModalShell({ title, accent, onClose, children }: { title: string; accent: string; onClose: () => void; children: React.ReactNode }) {
@@ -361,6 +419,55 @@ function RasxodEditModal({ rasxod, onClose, onSaved }: { rasxod: Rasxod; onClose
   );
 }
 
+function ObmenEditModal({ obmen, onClose, onSaved }: { obmen: Obmen; onClose: () => void; onSaved: () => void }) {
+  const [usd, setUsd] = useState(String(obmen.usdSumma));
+  const [kurs, setKurs] = useState(String(obmen.kurs));
+  const [izoh, setIzoh] = useState(obmen.izoh || '');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const uzs = usd && kurs ? Math.round(Number(usd) * Number(kurs)) : 0;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setMessage('');
+    try {
+      const res = await fetch('/api/avia/obmen', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: obmen.id, usdSumma: Number(usd), kurs: Number(kurs), uzsSumma: uzs, izoh }),
+      });
+      if (res.ok) { onSaved(); onClose(); }
+      else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik'); }
+    } catch { setMessage("Serverga ulanib bo'lmadi"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <ModalShell title="Obmenni tahrirlash" accent={T.teal} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <div>
+            <label style={labelStyle}>USD summa</label>
+            <input type="number" value={usd} onChange={(e) => setUsd(e.target.value)} required style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Kurs</label>
+            <input type="number" value={kurs} onChange={(e) => setKurs(e.target.value)} required style={inputStyle} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Olinadigan so&apos;m</label>
+          <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: T.green, fontWeight: 700 }}>{formatMoney(uzs)} so&apos;m</div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Izoh</label>
+          <input type="text" value={izoh} onChange={(e) => setIzoh(e.target.value)} style={inputStyle} />
+        </div>
+        <MessageBox message={message} />
+        <SaveButtons loading={loading} accent={T.teal} onClose={onClose} />
+      </form>
+    </ModalShell>
+  );
+}
+
 function SaveButtons({ loading, accent, onClose }: { loading: boolean; accent: string; onClose: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 10 }}>
@@ -376,10 +483,11 @@ const TABS = [
   { key: 'prixod' as const, label: 'Prixod', color: T.blue, icon: <ArrowUpRight size={14} /> },
   { key: 'rasxod' as const, label: 'Rasxod', color: T.red, icon: <ArrowDownRight size={14} /> },
   { key: 'refund' as const, label: 'Refund', color: T.orange, icon: <TrendingDown size={14} /> },
+  { key: 'obmen' as const, label: 'Obmen', color: T.teal, icon: <ArrowLeftRight size={14} /> },
   { key: 'inkassatsiya' as const, label: 'Inkassatsiya', color: T.purple, icon: <Landmark size={14} /> },
 ];
 
-type TabKey = 'prixod' | 'rasxod' | 'refund' | 'inkassatsiya';
+type TabKey = 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkassatsiya';
 type ViewKey = 'kassa' | 'hisobot';
 type ReportKey = 'kitob' | 'jurnal' | 'qarz' | 'biletlar';
 
@@ -399,7 +507,8 @@ export default function FinansistPage() {
   const [sanalganNaqd, setSanalganNaqd] = useState('');
   const [editPayment, setEditPayment] = useState<AviaPayment | null>(null);
   const [editRasxod, setEditRasxod] = useState<Rasxod | null>(null);
-  const [movFilter, setMovFilter] = useState<'all' | 'prixod' | 'rasxod' | 'refund' | 'inkas'>('all');
+  const [editObmen, setEditObmen] = useState<Obmen | null>(null);
+  const [movFilter, setMovFilter] = useState<'all' | 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas'>('all');
   const [movSearch, setMovSearch] = useState('');
   const [tixSearch, setTixSearch] = useState('');
   const [now, setNow] = useState(() => Date.now());
@@ -409,6 +518,7 @@ export default function FinansistPage() {
   const { data: rasxodData, mutate: mutateRasxod } = useSWR('/api/avia/rasxod', fetcher, { refreshInterval: 60000 });
   const { data: refundData, mutate: mutateRefund } = useSWR('/api/avia/refund', fetcher, { refreshInterval: 60000 });
   const { data: inkData, mutate: mutateInk } = useSWR('/api/avia/inkassatsiya', fetcher, { refreshInterval: 60000 });
+  const { data: obmenData, mutate: mutateObmen } = useSWR('/api/avia/obmen', fetcher, { refreshInterval: 60000 });
   const { data: ticketsData } = useSWR('/api/avia/tickets', fetcher, { refreshInterval: 60000 });
   const { data: reportsData, mutate: mutateReports } = useSWR(`/api/avia/reports${periodQuery(period)}`, fetcher, { refreshInterval: 60000 });
 
@@ -417,11 +527,13 @@ export default function FinansistPage() {
   const allRasxod = (rasxodData?.rasxodlar || []) as Rasxod[];
   const allRefund = (refundData?.refundlar || []) as { id: string; sana: string; summa: number; mijozIsmi?: string; biletRaqam?: string }[];
   const allInk = (inkData?.inkassatsiya || []) as { id: string; sana: string; summa: number; turi?: string; airlineName?: string }[];
+  const allObmen = (obmenData?.obmenlar || []) as Obmen[];
   const allTickets = (ticketsData?.tickets || []) as AviaTicket[];
   const payments = allPayments.filter((p) => inPeriod(p.sana, period));
   const rasxodlar = allRasxod.filter((r) => inPeriod(r.sana, period));
   const refundlar = allRefund.filter((r) => inPeriod(r.sana, period));
   const inkPeriod = allInk.filter((i) => inPeriod(i.sana, period));
+  const obmenPeriod = allObmen.filter((o) => inPeriod(o.sana, period));
 
   const debts = reportsData?.debts || [];
   const settledCount = reportsData?.kpi?.settledCount ?? 0;
@@ -440,20 +552,48 @@ export default function FinansistPage() {
   const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
   const jamiInk = inkPeriod.reduce((s, i) => s + i.summa, 0);
   const jamiKassaTopshirish = inkPeriod.filter((i) => i.turi === 'kassa').reduce((s, i) => s + i.summa, 0);
-  const uzsOstatka = uzsPrixod - jamiRasxod - jamiRefund - jamiInk;
+  const obmenUsd = obmenPeriod.reduce((s, o) => s + o.usdSumma, 0); // davrda USD dan chiqqan
+  const obmenUzs = obmenPeriod.reduce((s, o) => s + o.uzsSumma, 0); // davrda so'mga kirgan
 
-  // Naqd sverka (UZS): kutilgan naqd = UZS naqd kirim − rasxod − refund − kassa topshirish
-  const kutilganNaqd = naqd - jamiRasxod - jamiRefund - jamiKassaTopshirish;
+  // ===== Kun boshi / kun oxiri ostatka (davr chegaralari bo'yicha kümülатив) =====
+  // UZS kassa = UZS to'lovlar + obmen(so'm) − rasxod − refund − inkassatsiya
+  // USD kassa = USD to'lovlar − obmen(USD)
+  const { from: pFrom, to: pTo } = periodRange(period);
+  const before = (s: string) => (pFrom ? s < pFrom : false);   // davrdan oldin
+  const upto = (s: string) => (pTo ? s <= pTo : true);          // davr oxirigacha
+  const netUZS = (pred: (s: string) => boolean) => {
+    let s = 0;
+    allPayments.forEach((p) => { if (p.valyuta !== 'usd' && pred(p.sana)) s += p.summa; });
+    allObmen.forEach((o) => { if (pred(o.sana)) s += o.uzsSumma; });
+    allRasxod.forEach((r) => { if (pred(r.sana)) s -= r.summa; });
+    allRefund.forEach((r) => { if (pred(r.sana)) s -= r.summa; });
+    allInk.forEach((i) => { if (pred(i.sana)) s -= i.summa; });
+    return s;
+  };
+  const netUSD = (pred: (s: string) => boolean) => {
+    let s = 0;
+    allPayments.forEach((p) => { if (p.valyuta === 'usd' && pred(p.sana)) s += (p.summAsl || 0); });
+    allObmen.forEach((o) => { if (pred(o.sana)) s -= o.usdSumma; });
+    return s;
+  };
+  const uzsBoshi = netUZS(before);
+  const uzsOxiri = netUZS(upto);
+  const usdBoshi = netUSD(before);
+  const usdOxiri = netUSD(upto);
+
+  // Naqd sverka (UZS): kutilgan naqd = UZS naqd kirim + obmen so'm − rasxod − refund − kassa topshirish
+  const kutilganNaqd = naqd + obmenUzs - jamiRasxod - jamiRefund - jamiKassaTopshirish;
   const farq = sanalganNaqd === '' ? null : Number(sanalganNaqd) - kutilganNaqd;
 
-  const refreshAll = () => { mutatePayments(); mutateRasxod(); mutateRefund(); mutateInk(); mutateReports(); };
+  const refreshAll = () => { mutatePayments(); mutateRasxod(); mutateRefund(); mutateInk(); mutateObmen(); mutateReports(); };
 
   // ===== Birlashgan Kirim-Chiqim jurnali =====
-  type Mov = { id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'inkas'; sana: string; summa: number; label: string; sub?: string; payment?: AviaPayment; rasxod?: Rasxod };
+  type Mov = { id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas'; sana: string; summa: number; label: string; sub?: string; payment?: AviaPayment; rasxod?: Rasxod; obmen?: Obmen };
   const movements: Mov[] = [
     ...payments.map((p) => ({ id: p.id, kind: 'prixod' as const, sana: p.sana, summa: p.summa, label: p.mijozIsmi || p.biletRaqam || '—', sub: `${p.tolovTuri}${p.valyuta === 'usd' ? ` · $${fmtUsd(p.summAsl || 0)}` : ''}`, payment: p })),
     ...rasxodlar.map((r) => ({ id: r.id, kind: 'rasxod' as const, sana: r.sana, summa: r.summa, label: r.sabab || 'Rasxod', rasxod: r })),
     ...refundlar.map((r) => ({ id: r.id, kind: 'refund' as const, sana: r.sana, summa: r.summa, label: r.mijozIsmi || r.biletRaqam || 'Refund' })),
+    ...obmenPeriod.map((o) => ({ id: o.id, kind: 'obmen' as const, sana: o.sana, summa: o.uzsSumma, label: `Obmen $${fmtUsd(o.usdSumma)} → so'm`, sub: `kurs ${fmtUsd(o.kurs)}`, obmen: o })),
     ...inkPeriod.map((i) => ({ id: i.id, kind: 'inkas' as const, sana: i.sana, summa: i.summa, label: i.turi === 'kassa' ? 'Kassa topshirish' : (i.airlineName || 'Inkassatsiya') })),
   ].sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a));
   const movShown = movements.filter((m) => {
@@ -465,21 +605,26 @@ export default function FinansistPage() {
     prixod: { label: 'Prixod', color: T.blue, sign: 1 },
     rasxod: { label: 'Rasxod', color: T.red, sign: -1 },
     refund: { label: 'Refund', color: T.orange, sign: -1 },
+    obmen: { label: 'Obmen', color: T.teal, sign: 1 },
     inkas: { label: 'Inkas.', color: T.purple, sign: -1 },
   };
 
   // ===== Kassa kitobi (valyuta bo'yicha): kunlik ostatok boshi/oxiri =====
-  const buildBook = (inflowOf: (p: AviaPayment) => number, withOutflow: boolean) => {
+  const buildBook = (cur: Valyuta) => {
     const dm = new Map<string, { kirim: number; chiqim: number }>();
     const bump = (sana: string, kirim: number, chiqim: number) => {
       const e = dm.get(sana) || { kirim: 0, chiqim: 0 };
       e.kirim += kirim; e.chiqim += chiqim; dm.set(sana, e);
     };
-    allPayments.forEach((p) => bump(p.sana, inflowOf(p), 0));
-    if (withOutflow) {
+    if (cur === 'uzs') {
+      allPayments.forEach((p) => { if (p.valyuta !== 'usd') bump(p.sana, p.summa, 0); });
+      allObmen.forEach((o) => bump(o.sana, o.uzsSumma, 0)); // obmen -> so'm kirim
       allRasxod.forEach((r) => bump(r.sana, 0, r.summa));
       allRefund.forEach((r) => bump(r.sana, 0, r.summa));
       allInk.forEach((i) => bump(i.sana, 0, i.summa));
+    } else {
+      allPayments.forEach((p) => { if (p.valyuta === 'usd') bump(p.sana, p.summAsl || 0, 0); });
+      allObmen.forEach((o) => bump(o.sana, 0, o.usdSumma)); // obmen -> USD chiqim
     }
     const days = [...dm.keys()].sort();
     return days.map((sana, idx) => {
@@ -488,8 +633,8 @@ export default function FinansistPage() {
       return { sana, boshi, kirim, chiqim, oxiri: boshi + kirim - chiqim };
     });
   };
-  const uzsBook = buildBook((p) => (p.valyuta === 'usd' ? 0 : p.summa), true);
-  const usdBook = buildBook((p) => (p.valyuta === 'usd' ? (p.summAsl || 0) : 0), false);
+  const uzsBook = buildBook('uzs');
+  const usdBook = buildBook('usd');
   const bookShown = (bookCur === 'usd' ? usdBook : uzsBook).filter((d) => inPeriod(d.sana, period)).reverse();
   const fmtBook = (n: number) => (bookCur === 'usd' ? `$${fmtUsd(n)}` : formatMoney(n));
 
@@ -525,30 +670,52 @@ export default function FinansistPage() {
         <button onClick={() => setView('hisobot')} style={segBtn(view === 'hisobot', T.green)}><ReceiptText size={16} /> Hisobotlar</button>
       </div>
 
-      {/* Ostatka strip — UZS va USD (har ikkala ko'rinishda) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 18 }}>
-        <div style={{ ...card, borderTop: `2px solid ${uzsOstatka >= 0 ? T.green : T.red}`, padding: '18px 22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em' }}>
-              <Wallet size={15} style={{ color: uzsOstatka >= 0 ? T.green : T.red }} /> UZS OSTATKA
-            </div>
-            <span style={{ color: uzsOstatka >= 0 ? T.green : T.red, fontSize: 12, fontWeight: 600 }}>{uzsOstatka >= 0 ? 'Musbat' : 'Manfiy'}</span>
+      {/* Ostatka strip — Kun boshi → Kun oxiri (UZS va USD) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 12, marginBottom: 18 }}>
+        {/* UZS ostatka oqimi */}
+        <div style={{ ...card, borderTop: `2px solid ${uzsOxiri >= 0 ? T.green : T.red}`, padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 14 }}>
+            <Wallet size={15} style={{ color: uzsOxiri >= 0 ? T.green : T.red }} /> UZS OSTATKA
           </div>
-          <div style={{ color: uzsOstatka >= 0 ? T.green : T.red, fontSize: 28, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1.1, marginBottom: 10 }}>{formatMoney(uzsOstatka)} so&apos;m</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
+            <div>
+              <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3 }}>KUN BOSHI</div>
+              <div style={{ color: T.mut, fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(uzsBoshi)}</div>
+            </div>
+            <ArrowRight size={18} style={{ color: T.dim, marginBottom: 4, flexShrink: 0 }} />
+            <div>
+              <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3 }}>KUN OXIRI</div>
+              <div style={{ color: uzsOxiri >= 0 ? T.green : T.red, fontSize: 26, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1 }}>{formatMoney(uzsOxiri)}<span style={{ fontSize: 13, color: T.dim, fontWeight: 600 }}> so&apos;m</span></div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, flexWrap: 'wrap', marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.line}` }}>
             <span style={{ color: T.blue, fontWeight: 600 }}>+{formatMoney(uzsPrixod)}</span><span style={{ color: T.dim }}>prixod</span>
+            {obmenUzs > 0 && (<><span style={{ color: T.dim }}>+</span><span style={{ color: T.teal, fontWeight: 600 }}>{formatMoney(obmenUzs)}</span><span style={{ color: T.dim }}>obmen</span></>)}
             <span style={{ color: T.dim }}>−</span><span style={{ color: T.red, fontWeight: 600 }}>{formatMoney(jamiRasxod)}</span><span style={{ color: T.dim }}>rasxod</span>
             <span style={{ color: T.dim }}>−</span><span style={{ color: T.orange, fontWeight: 600 }}>{formatMoney(jamiRefund)}</span><span style={{ color: T.dim }}>refund</span>
             <span style={{ color: T.dim }}>−</span><span style={{ color: T.purple, fontWeight: 600 }}>{formatMoney(jamiInk)}</span><span style={{ color: T.dim }}>inkas.</span>
           </div>
         </div>
+        {/* USD ostatka oqimi */}
         <div style={{ ...card, borderTop: `2px solid ${T.blue}`, padding: '18px 22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 6 }}>
-            <DollarSign size={15} style={{ color: T.blue }} /> USD OSTATKA (kassada)
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 14 }}>
+            <DollarSign size={15} style={{ color: T.blue }} /> USD OSTATKA
           </div>
-          <div style={{ color: T.blue, fontSize: 28, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1.1, marginBottom: 10 }}>${fmtUsd(usdKirim)}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: T.dim }}>
-            <ArrowLeftRight size={13} /> {usdPay.length} ta USD operatsiya / obmen
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
+            <div>
+              <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3 }}>KUN BOSHI</div>
+              <div style={{ color: T.mut, fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>${fmtUsd(usdBoshi)}</div>
+            </div>
+            <ArrowRight size={18} style={{ color: T.dim, marginBottom: 4, flexShrink: 0 }} />
+            <div>
+              <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3 }}>KUN OXIRI</div>
+              <div style={{ color: T.blue, fontSize: 26, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1 }}>${fmtUsd(usdOxiri)}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: T.dim, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.line}`, flexWrap: 'wrap' }}>
+            <ArrowLeftRight size={13} />
+            <span style={{ color: T.blue, fontWeight: 600 }}>+${fmtUsd(usdKirim)}</span> kirim
+            {obmenUsd > 0 && (<>· <span style={{ color: T.teal, fontWeight: 600 }}>−${fmtUsd(obmenUsd)}</span> obmen</>)}
           </div>
         </div>
       </div>
@@ -571,11 +738,12 @@ export default function FinansistPage() {
             <div style={{ padding: 22 }}>
               <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ color: activeTab.color }}>{activeTab.icon}</span>
-                {tab === 'prixod' ? 'Yangi Prixod / Obmen' : tab === 'rasxod' ? 'Rasxod (Chiqim)' : tab === 'refund' ? 'Refund (Pul qaytarish)' : 'Inkassatsiya'}
+                {tab === 'prixod' ? 'Yangi Prixod' : tab === 'rasxod' ? 'Rasxod (Chiqim)' : tab === 'refund' ? 'Refund (Pul qaytarish)' : tab === 'obmen' ? 'Obmen — USD ni som ga' : 'Inkassatsiya'}
               </h3>
               {tab === 'prixod' && <PaymentForm onSuccess={refreshAll} />}
               {tab === 'rasxod' && <RasxodForm onSuccess={refreshAll} />}
               {tab === 'refund' && <RefundForm onSuccess={refreshAll} />}
+              {tab === 'obmen' && <ObmenForm onSuccess={refreshAll} usdMavjud={usdOxiri} />}
               {tab === 'inkassatsiya' && <InkassatsiyaTab onSuccess={refreshAll} />}
             </div>
           </div>
@@ -683,7 +851,7 @@ export default function FinansistPage() {
                       <th style={thStyle}>Sana</th>
                       <th style={{ ...thStyle, textAlign: 'right' }}>Ostatok boshi</th>
                       <th style={{ ...thStyle, textAlign: 'right' }}>Kirim</th>
-                      {bookCur === 'uzs' && <th style={{ ...thStyle, textAlign: 'right' }}>Chiqim</th>}
+                      <th style={{ ...thStyle, textAlign: 'right' }}>Chiqim</th>
                       <th style={{ ...thStyle, textAlign: 'right' }}>Ostatok oxiri</th>
                     </tr></thead>
                     <tbody>
@@ -692,7 +860,7 @@ export default function FinansistPage() {
                           <td style={{ padding: '9px 12px', color: T.text, fontSize: 12.5, fontWeight: 600 }}>{d.sana}</td>
                           <td style={{ padding: '9px 12px', textAlign: 'right', color: T.mut, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{fmtBook(d.boshi)}</td>
                           <td style={{ padding: '9px 12px', textAlign: 'right', color: T.blue, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>+{fmtBook(d.kirim)}</td>
-                          {bookCur === 'uzs' && <td style={{ padding: '9px 12px', textAlign: 'right', color: T.red, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>−{fmtBook(d.chiqim)}</td>}
+                          <td style={{ padding: '9px 12px', textAlign: 'right', color: T.red, fontSize: 12.5, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{d.chiqim ? '−' + fmtBook(d.chiqim) : <span style={{ color: T.dim }}>—</span>}</td>
                           <td style={{ padding: '9px 12px', textAlign: 'right', color: d.oxiri >= 0 ? T.green : T.red, fontSize: 13, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{fmtBook(d.oxiri)}</td>
                         </tr>
                       ))}
@@ -722,6 +890,7 @@ export default function FinansistPage() {
                   { k: 'prixod' as const, l: 'Prixod', c: T.blue },
                   { k: 'rasxod' as const, l: 'Rasxod', c: T.red },
                   { k: 'refund' as const, l: 'Refund', c: T.orange },
+                  { k: 'obmen' as const, l: 'Obmen', c: T.teal },
                   { k: 'inkas' as const, l: 'Inkas.', c: T.purple },
                 ]).map((f) => {
                   const on = movFilter === f.k;
@@ -744,8 +913,14 @@ export default function FinansistPage() {
                       {movShown.map((m) => {
                         const meta = MOV_META[m.kind];
                         const remaining = ticketEditRemainingMs(m, now);
-                        const canEdit = (m.kind === 'prixod' || m.kind === 'rasxod') && remaining > 0;
+                        const editable = m.kind === 'prixod' || m.kind === 'rasxod' || m.kind === 'obmen';
+                        const canEdit = editable && remaining > 0;
                         const soat = Math.floor(remaining / 3600000);
+                        const openEdit = () => {
+                          if (m.kind === 'prixod') setEditPayment(m.payment!);
+                          else if (m.kind === 'rasxod') setEditRasxod(m.rasxod!);
+                          else if (m.kind === 'obmen') setEditObmen(m.obmen!);
+                        };
                         return (
                           <tr key={m.id} onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover(null)} style={{ borderBottom: `1px solid ${T.line}`, backgroundColor: hover === m.id ? '#1E2E2450' : 'transparent' }}>
                             <td style={{ padding: '8px 12px', color: T.mut, fontSize: 12 }}>{m.sana}</td>
@@ -755,9 +930,9 @@ export default function FinansistPage() {
                             <td style={{ padding: '8px 12px', color: T.text, fontSize: 12.5 }}>{m.label}{m.sub ? <span style={{ color: T.dim, fontSize: 11 }}> · {m.sub}</span> : null}</td>
                             <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: meta.color }}>{meta.sign > 0 ? '+' : '−'}{formatMoney(m.summa)}</td>
                             <td style={{ padding: '8px 12px', textAlign: 'right' }}>
-                              {(m.kind === 'prixod' || m.kind === 'rasxod') ? (
+                              {editable ? (
                                 canEdit ? (
-                                  <button onClick={() => (m.kind === 'prixod' ? setEditPayment(m.payment!) : setEditRasxod(m.rasxod!))} title={`${soat} soat ichida tahrirlash mumkin`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', backgroundColor: '#F5A62318', color: T.orange, border: `1px solid ${T.orange}40` }}>
+                                  <button onClick={openEdit} title={`${soat} soat ichida tahrirlash mumkin`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', backgroundColor: '#F5A62318', color: T.orange, border: `1px solid ${T.orange}40` }}>
                                     <Pencil size={10} /> {soat}s
                                   </button>
                                 ) : <span title="48 soatlik muddat tugagan" style={{ display: 'inline-flex', alignItems: 'center', color: T.dim }}><Lock size={12} /></span>
@@ -823,6 +998,7 @@ export default function FinansistPage() {
 
       {editPayment && <PaymentEditModal payment={editPayment} onClose={() => setEditPayment(null)} onSaved={refreshAll} />}
       {editRasxod && <RasxodEditModal rasxod={editRasxod} onClose={() => setEditRasxod(null)} onSaved={refreshAll} />}
+      {editObmen && <ObmenEditModal obmen={editObmen} onClose={() => setEditObmen(null)} onSaved={refreshAll} />}
     </div>
   );
 }

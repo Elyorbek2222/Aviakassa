@@ -80,6 +80,18 @@ export interface Refund {
   izoh?: string;
 }
 
+// ===== Obmen (kassadagi USD ni som ga o'tkazish) =====
+// USD kassadan chiqadi (usdSumma), UZS kassaga kiradi (uzsSumma = usdSumma * kurs).
+
+export interface Obmen {
+  id: string;
+  sana: string; // YYYY-MM-DD
+  usdSumma: number; // o'tkazilgan dollar
+  kurs: number;
+  uzsSumma: number; // qo'lga kiritilgan so'm
+  izoh?: string;
+}
+
 // ===== Settings =====
 
 export interface AirlineConfig {

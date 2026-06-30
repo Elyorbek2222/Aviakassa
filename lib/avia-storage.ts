@@ -9,6 +9,7 @@ import type {
   AirlineConfig,
   SverkaData,
   OtchotListItem,
+  Obmen,
 } from '../types/avia';
 
 // ===== Generic jsonb hujjat yordamchilari =====
@@ -117,6 +118,26 @@ export async function addRasxod(item: Rasxod): Promise<Rasxod[]> {
 // Mavjud rasxodni yangilash — id bo'yicha upsert
 export async function updateRasxod(item: Rasxod): Promise<void> {
   await upsertDocs('rasxod', [item]);
+}
+
+// ===== Obmen (USD -> UZS) =====
+
+export async function getObmenlar(): Promise<Obmen[]> {
+  // Jadval hali yaratilmagan bo'lsa ham sahifa buzilmasin
+  try {
+    return await selectAll<Obmen>('obmen');
+  } catch {
+    return [];
+  }
+}
+
+export async function addObmen(item: Obmen): Promise<Obmen[]> {
+  await upsertDocs('obmen', [item]);
+  return getObmenlar();
+}
+
+export async function updateObmen(item: Obmen): Promise<void> {
+  await upsertDocs('obmen', [item]);
 }
 
 // ===== Refund =====
