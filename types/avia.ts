@@ -189,3 +189,11 @@ export interface SverkaData {
   meta: { oy: string; manbalar: string[]; sverka: SverkaStats };
   yozuvlar: SverkaRow[];
 }
+
+// Otchot ro'yxati uchun yengil element (oylar bo'yicha)
+export interface OtchotListItem {
+  id: string;
+  oy: string;
+  manbalar: string[];
+  sverka: SverkaStats;
+}

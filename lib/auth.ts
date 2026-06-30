@@ -12,10 +12,10 @@ export interface AuthUser {
 export const SESSION_COOKIE_NAME = 'avia-session';
 
 export const ROLE_PAGES: Record<UserRole, string[]> = {
-  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/upload', '/aprel', '/settings', '/qollanma'],
+  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/upload', '/otchot', '/settings', '/qollanma', '/kassir', '/begzod', '/begzod/debts', '/buxgalter'],
   begzod: ['/begzod', '/begzod/debts', '/qollanma'],
   kassir: ['/kassir', '/qollanma'],
-  buxgalter: ['/buxgalter', '/aprel', '/qollanma'],
+  buxgalter: ['/buxgalter', '/otchot', '/qollanma'],
 };
 
 export const ROLE_HOME: Record<UserRole, string> = {
@@ -39,7 +39,7 @@ const USERS: { username: string; password: string; role: UserRole; name: string 
     username: process.env.ADMIN_USERNAME ?? '',
     password: process.env.ADMIN_PASSWORD ?? '',
     role: 'admin',
-    name: 'Administrator',
+    name: 'Elyor',
   },
   {
     username: process.env.KASSIR_USERNAME ?? '',

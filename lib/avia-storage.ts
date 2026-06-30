@@ -8,6 +8,7 @@ import type {
   AviaSettings,
   AirlineConfig,
   SverkaData,
+  OtchotListItem,
 } from '../types/avia';
 
 // ===== Generic jsonb hujjat yordamchilari =====
@@ -124,16 +125,39 @@ const EMPTY_SVERKA: SverkaData = {
   yozuvlar: [],
 };
 
-// Aprel 2026 sverka hisoboti (Begzod ledger ↔ aviakompaniya manbalari)
-export async function getAprelSverka(): Promise<SverkaData> {
-  const { data, error } = await getSupabase().from('otchot').select('doc').eq('id', 'aprel-2026').maybeSingle();
+// Bitta oylik otchotni id bo'yicha o'qish (masalan 'aprel-2026')
+export async function getOtchot(id: string): Promise<SverkaData> {
+  const { data, error } = await getSupabase().from('otchot').select('doc').eq('id', id).maybeSingle();
   if (error) throw error;
   return (data?.doc as SverkaData) || EMPTY_SVERKA;
 }
 
-export async function saveAprelSverka(d: SverkaData): Promise<void> {
-  const { error } = await getSupabase().from('otchot').upsert({ id: 'aprel-2026', doc: d }, { onConflict: 'id' });
+// Aprel 2026 sverka hisoboti (Begzod ledger ↔ aviakompaniya manbalari)
+export async function getAprelSverka(): Promise<SverkaData> {
+  return getOtchot('aprel-2026');
+}
+
+// Barcha oylik otchotlar ro'yxati (yengil — yon menyu/index uchun)
+export async function listOtchotlar(): Promise<OtchotListItem[]> {
+  const { data, error } = await getSupabase().from('otchot').select('id, doc');
   if (error) throw error;
+  return (data || [])
+    .map((r: { id: string; doc: SverkaData }) => ({
+      id: r.id,
+      oy: r.doc?.meta?.oy || r.id,
+      manbalar: r.doc?.meta?.manbalar || [],
+      sverka: r.doc?.meta?.sverka || EMPTY_SVERKA.meta.sverka,
+    }))
+    .sort((a, b) => (a.oy < b.oy ? 1 : -1));
+}
+
+export async function saveOtchot(id: string, d: SverkaData): Promise<void> {
+  const { error } = await getSupabase().from('otchot').upsert({ id, doc: d }, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+export async function saveAprelSverka(d: SverkaData): Promise<void> {
+  return saveOtchot('aprel-2026', d);
 }
 
 // ===== Settings =====
