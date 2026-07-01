@@ -120,6 +120,7 @@ export interface DebtRecord {
   sana: string;
   airline: AirlineKey;
   biletId: string;
+  izoh?: string; // biletdagi komentariya (kimga yozilgani) — qarzdorni topish uchun
 }
 
 export interface PartnerDebt {

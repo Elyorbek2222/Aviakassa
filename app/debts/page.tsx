@@ -42,7 +42,7 @@ export default function DebtsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #1E2E24' }}>
-                  {['Sana', 'Bilet Raqam', 'Mijoz', 'Sotish Narxi', 'To\'langan', 'Qarz'].map((h) => (
+                  {['Sana', 'Bilet Raqam', 'Mijoz', 'Izoh', 'Sotish Narxi', 'To\'langan', 'Qarz'].map((h) => (
                     <th key={h} style={{
                       padding: '10px 12px',
                       textAlign: ['Sotish Narxi', 'To\'langan', 'Qarz'].includes(h) ? 'right' : 'left',
@@ -52,11 +52,12 @@ export default function DebtsPage() {
                 </tr>
               </thead>
               <tbody>
-                {debts.map((d: { biletId: string; sana: string; biletRaqam: string; mijozIsmi: string; sotishNarxi: number; tolangan: number; qarz: number }) => (
+                {debts.map((d: { biletId: string; sana: string; biletRaqam: string; mijozIsmi: string; sotishNarxi: number; tolangan: number; qarz: number; izoh?: string }) => (
                   <tr key={d.biletId} style={{ borderBottom: '1px solid #1E2E24' }}>
                     <td style={{ padding: '10px 12px', color: '#8A9A8F', fontSize: 13 }}>{d.sana}</td>
                     <td style={{ padding: '10px 12px', color: '#fff', fontSize: 13, fontWeight: 500 }}>{d.biletRaqam}</td>
                     <td style={{ padding: '10px 12px', color: '#fff', fontSize: 13 }}>{d.mijozIsmi}</td>
+                    <td style={{ padding: '10px 12px', color: d.izoh ? '#c8d8cc' : '#4A5C50', fontSize: 13 }}>{d.izoh || '—'}</td>
                     <td style={{ padding: '10px 12px', color: '#fff', fontSize: 13, textAlign: 'right' }}>{formatMoney(d.sotishNarxi)}</td>
                     <td style={{ padding: '10px 12px', color: '#7CFF4F', fontSize: 13, textAlign: 'right' }}>{formatMoney(d.tolangan)}</td>
                     <td style={{ padding: '10px 12px', color: '#FF3B30', fontSize: 13, textAlign: 'right', fontWeight: 600 }}>{formatMoney(d.qarz)}</td>

@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import useSWR from 'swr';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Search } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -13,6 +14,7 @@ interface DebtItem {
   qarz: number;
   sana: string;
   airline: string;
+  izoh?: string;
 }
 
 function formatMoney(n: number): string {
@@ -24,8 +26,12 @@ export default function BegzodDebtsPage() {
 
   // Faqat Begzod yozgan biletlarning qarzlarini ko'rsatish
   const allDebts: DebtItem[] = data?.debts || [];
-  // Agar agent filtrlanmagan bo'lsa — hamma qarzlarni ko'rsatamiz (chunki Begzod o'zining biletlarini ko'rishi kerak)
-  const debts = allDebts;
+  // Qidiruv: mijoz, bilet raqami yoki izoh (kimga yozilgani) bo'yicha
+  const [search, setSearch] = useState('');
+  const q = search.trim().toLowerCase();
+  const debts = q
+    ? allDebts.filter((d) => `${d.mijozIsmi} ${d.biletRaqam} ${d.izoh || ''}`.toLowerCase().includes(q))
+    : allDebts;
   const totalQarz = debts.reduce((s: number, d: DebtItem) => s + d.qarz, 0);
 
   return (
@@ -60,6 +66,18 @@ export default function BegzodDebtsPage() {
         </div>
       )}
 
+      {/* Qidiruv — mijoz / bilet / izoh (kimga yozilgani) */}
+      <div style={{ position: 'relative', marginBottom: 16, maxWidth: 360 }}>
+        <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#4A5C50' }} />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Mijoz, bilet yoki izoh bo'yicha qidirish…"
+          style={{ width: '100%', padding: '10px 14px 10px 36px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: '#0A0F0D', color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+        />
+      </div>
+
       {debts.length === 0 ? (
         <div
           style={{
@@ -88,6 +106,7 @@ export default function BegzodDebtsPage() {
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: '#8A9A8F', fontWeight: 500 }}>Sana</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: '#8A9A8F', fontWeight: 500 }}>Bilet raqam</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: '#8A9A8F', fontWeight: 500 }}>Yo&apos;lovchi</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px', color: '#8A9A8F', fontWeight: 500 }}>Izoh</th>
                 <th style={{ textAlign: 'left', padding: '12px 16px', color: '#8A9A8F', fontWeight: 500 }}>Airline</th>
                 <th style={{ textAlign: 'right', padding: '12px 16px', color: '#8A9A8F', fontWeight: 500 }}>Bilet narxi</th>
                 <th style={{ textAlign: 'right', padding: '12px 16px', color: '#8A9A8F', fontWeight: 500 }}>To&apos;langan</th>
@@ -100,6 +119,7 @@ export default function BegzodDebtsPage() {
                   <td style={{ padding: '12px 16px', color: '#fff' }}>{d.sana}</td>
                   <td style={{ padding: '12px 16px', color: '#F5A623', fontFamily: 'monospace' }}>{d.biletRaqam || '—'}</td>
                   <td style={{ padding: '12px 16px', color: '#fff', fontWeight: 500 }}>{d.mijozIsmi}</td>
+                  <td style={{ padding: '12px 16px', color: d.izoh ? '#c8d8cc' : '#4A5C50' }}>{d.izoh || '—'}</td>
                   <td style={{ padding: '12px 16px', color: '#8A9A8F' }}>{d.airline}</td>
                   <td style={{ padding: '12px 16px', color: '#fff', textAlign: 'right' }}>{formatMoney(d.sotishNarxi)}</td>
                   <td style={{ padding: '12px 16px', color: '#7CFF4F', textAlign: 'right' }}>{formatMoney(d.tolangan)}</td>

@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
           sana: t.sana,
           airline: t.airline,
           biletId: t.id,
+          izoh: t.izoh || '',
         });
       } else {
         settledCount += 1; // to'liq to'langan bilet

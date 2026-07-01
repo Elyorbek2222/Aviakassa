@@ -16,7 +16,7 @@ export default function AviaDebtTable({ debts }: Props) {
   const q = search.trim().toLowerCase();
   const safeDebts = q
     ? allDebts.filter((d) =>
-        `${d.mijozIsmi} ${d.biletRaqam} ${d.sana}`.toLowerCase().includes(q)
+        `${d.mijozIsmi} ${d.biletRaqam} ${d.sana} ${d.izoh || ''}`.toLowerCase().includes(q)
       )
     : allDebts;
   const totalQarz = safeDebts.reduce((sum, d) => sum + d.qarz, 0);
@@ -78,7 +78,7 @@ export default function AviaDebtTable({ debts }: Props) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Mijoz yoki bilet bo'yicha qidirish…"
+            placeholder="Mijoz, bilet yoki izoh bo'yicha qidirish…"
             style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: '#0A0F0D', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
@@ -89,6 +89,7 @@ export default function AviaDebtTable({ debts }: Props) {
           <thead>
             <tr>
               <th style={thStyle}>Mijoz</th>
+              <th style={thStyle}>Izoh</th>
               <th style={thStyle}>Bilet raqam</th>
               <th style={thStyle}>Aviakompaniya</th>
               <th style={thStyle}>Bilet narxi</th>
@@ -100,6 +101,7 @@ export default function AviaDebtTable({ debts }: Props) {
             {safeDebts.map((d, idx) => (
               <tr key={d.biletId || `debt-${idx}`}>
                 <td style={{ ...tdStyle, color: '#fff', fontWeight: 500 }}>{d.mijozIsmi}</td>
+                <td style={{ ...tdStyle, color: d.izoh ? '#c8d8cc' : '#4A5C50' }}>{d.izoh || '—'}</td>
                 <td style={{ ...tdStyle, color: '#fff', fontFamily: 'monospace' }}>{d.biletRaqam}</td>
                 <td style={{ ...tdStyle, color: '#8A9A8F' }}>
                   {AIRLINE_LABELS[d.airline as AirlineKey] || d.airline}
@@ -119,7 +121,7 @@ export default function AviaDebtTable({ debts }: Props) {
             ))}
             {safeDebts.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ ...tdStyle, color: '#4A5C50', textAlign: 'center' }}>
+                <td colSpan={7} style={{ ...tdStyle, color: '#4A5C50', textAlign: 'center' }}>
                   {q ? 'Topilmadi' : 'Qarzdorlik yo\'q'}
                 </td>
               </tr>
