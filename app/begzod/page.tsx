@@ -28,6 +28,7 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
   const [message, setMessage] = useState('');
   const [pasteText, setPasteText] = useState('');
   const [parseInfo, setParseInfo] = useState('');
+  const [showMore, setShowMore] = useState(false);
   const biletRef = useRef<HTMLInputElement>(null);
   const tarifRef = useRef<HTMLInputElement>(null);
 
@@ -261,44 +262,56 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
             />
           </div>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Yo&apos;lovchilar soni</label>
-          <input
-            type="number"
-            value={form.passengerCount}
-            onChange={(e) => setForm({ ...form, passengerCount: Number(e.target.value) })}
-            min={1}
-            style={inputStyle}
-          />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Qo&apos;shimcha foyda (UZS) — ixtiyoriy</label>
-          <input
-            type="number"
-            value={form.qoshimchaFoyda}
-            onChange={(e) => setForm({ ...form, qoshimchaFoyda: e.target.value })}
-            placeholder="0"
-            min={0}
-            style={inputStyle}
-          />
-          <div style={{ color: '#4A5C50', fontSize: 11, marginTop: 5 }}>
-            Shu biletdan olingan alohida (ekstra) foyda. Sof foydaga qo&apos;shiladi.
-          </div>
-        </div>
-        {form.qoshimchaFoyda && Number(form.qoshimchaFoyda) > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Qo&apos;shimcha foyda izohi</label>
-            <input
-              type="text"
-              value={form.qoshimchaIzoh}
-              onChange={(e) => setForm({ ...form, qoshimchaIzoh: e.target.value })}
-              placeholder="Masalan: qimmat sotildi / maxsus marja"
-              style={inputStyle}
-            />
-          </div>
+        {/* Qo'shimcha (ixtiyoriy) — sukut bo'yicha yashirin, formani qisqartiradi */}
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          style={{ width: '100%', textAlign: 'left', padding: '9px 12px', marginBottom: 14, borderRadius: 8, border: '1px dashed #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 12.5, cursor: 'pointer' }}
+        >
+          {showMore ? "− Qo'shimcha maydonlarni yashirish" : "+ Qo'shimcha (yo'lovchilar soni, ekstra foyda)"}
+        </button>
+        {showMore && (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Yo&apos;lovchilar soni</label>
+              <input
+                type="number"
+                value={form.passengerCount}
+                onChange={(e) => setForm({ ...form, passengerCount: Number(e.target.value) })}
+                min={1}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Qo&apos;shimcha foyda (UZS) — ixtiyoriy</label>
+              <input
+                type="number"
+                value={form.qoshimchaFoyda}
+                onChange={(e) => setForm({ ...form, qoshimchaFoyda: e.target.value })}
+                placeholder="0"
+                min={0}
+                style={inputStyle}
+              />
+              <div style={{ color: '#4A5C50', fontSize: 11, marginTop: 5 }}>
+                Shu biletdan olingan alohida (ekstra) foyda. Sof foydaga qo&apos;shiladi.
+              </div>
+            </div>
+            {form.qoshimchaFoyda && Number(form.qoshimchaFoyda) > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Qo&apos;shimcha foyda izohi</label>
+                <input
+                  type="text"
+                  value={form.qoshimchaIzoh}
+                  onChange={(e) => setForm({ ...form, qoshimchaIzoh: e.target.value })}
+                  placeholder="Masalan: qimmat sotildi / maxsus marja"
+                  style={inputStyle}
+                />
+              </div>
+            )}
+          </>
         )}
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Kommentariya</label>
+          <label style={labelStyle}>Kommentariya (kimga / izoh)</label>
           <textarea
             value={form.izoh}
             onChange={(e) => setForm({ ...form, izoh: e.target.value })}
@@ -328,18 +341,20 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
           disabled={loading}
           style={{
             width: '100%',
-            padding: 12,
-            borderRadius: 8,
+            padding: '15px 20px',
+            borderRadius: 10,
             border: 'none',
             backgroundColor: '#7CFF4F',
             color: '#0A0F0D',
-            fontSize: 15,
-            fontWeight: 600,
+            fontSize: 16.5,
+            fontWeight: 800,
+            letterSpacing: '0.02em',
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.6 : 1,
+            boxShadow: loading ? 'none' : '0 4px 16px rgba(124,255,79,0.18)',
           }}
         >
-          {loading ? 'Saqlanmoqda...' : 'Saqlash'}
+          {loading ? 'Saqlanmoqda...' : '＋ Biletni saqlash'}
         </button>
       </form>
     </div>

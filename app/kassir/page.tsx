@@ -791,9 +791,10 @@ export default function FinansistPage() {
             <div style={{ display: 'flex', borderBottom: `1px solid ${T.line}`, position: 'relative', overflowX: 'auto' }}>
               {TABS.map((t) => (
                 <button key={t.key} onClick={() => setTab(t.key)} style={{
-                  display: 'flex', alignItems: 'center', gap: 6, padding: '12px 18px', background: 'none', border: 'none',
-                  cursor: 'pointer', color: tab === t.key ? t.color : T.dim, fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
-                  whiteSpace: 'nowrap', borderBottom: `2px solid ${tab === t.key ? t.color : 'transparent'}`, marginBottom: -1,
+                  display: 'flex', alignItems: 'center', gap: 7, padding: '14px 20px', border: 'none',
+                  cursor: 'pointer', color: tab === t.key ? t.color : T.mut, fontSize: 13.5, fontWeight: tab === t.key ? 800 : 600,
+                  whiteSpace: 'nowrap', borderBottom: `2.5px solid ${tab === t.key ? t.color : 'transparent'}`, marginBottom: -1,
+                  backgroundColor: tab === t.key ? t.color + '14' : 'transparent', transition: 'all 0.15s ease',
                 }}>
                   <span>{t.icon}</span>{t.label}
                 </button>

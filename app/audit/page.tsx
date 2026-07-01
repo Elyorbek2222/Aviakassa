@@ -17,6 +17,7 @@ const ENTITY_LABELS: Record<AuditEntity, string> = {
   inkassatsiya: 'Inkassatsiya',
   settings: 'Sozlamalar',
   otchot: 'Otchot',
+  prixot: 'Prixot',
 };
 
 const ACTION_LABELS: Record<AuditAction, string> = {

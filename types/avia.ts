@@ -216,6 +216,40 @@ export interface OtchotListItem {
   sverka: SverkaStats;
 }
 
+// ===== Prixot (biletlar uchun kirgan pul) — kunlik jurnal, admin tahrirlaydi =====
+// Aviakompaniya otchoti (bilet narxlari) bilan solishtirish uchun. Nom bo'yicha
+// avtomatik moslashtirish ishonchsiz, shuning uchun admin qatorlarni qo'lda tuzatadi.
+
+export type PrixotTur = 'bilet' | 'otkazma' | 'obmen' | 'foyda' | 'tur' | 'boshqa';
+
+export const PRIXOT_TUR_LABEL: Record<PrixotTur, string> = {
+  bilet: 'Bilet puli',
+  otkazma: "Tur→Avia o'tkazma",
+  obmen: 'Obmen (dollar)',
+  foyda: 'Foyda',
+  tur: 'Tur mahsuloti',
+  boshqa: 'Boshqa',
+};
+
+// Sverka balansida faqat shular "avia bilet uchun kirgan pul" deb hisoblanadi.
+export const PRIXOT_HISOB_TURLARI: PrixotTur[] = ['bilet', 'otkazma'];
+
+export interface PrixotYozuv {
+  id: string;
+  sana: string; // YYYY-MM-DD
+  mijoz: string;
+  summa: number; // UZS
+  tur: PrixotTur;
+  biletRaqam?: string; // ixtiyoriy — admin qo'lda bog'lasa aniq sverka bo'ladi
+  izoh?: string;
+}
+
+// Bir oylik prixot hujjati (otchot jadvalida `prixot-YYYY-MM` id bilan saqlanadi)
+export interface PrixotDoc {
+  oy: string; // YYYY-MM
+  yozuvlar: PrixotYozuv[];
+}
+
 // ===== Audit log (kim / nima / qachon) =====
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'clear';
@@ -229,7 +263,8 @@ export type AuditEntity =
   | 'obmen'
   | 'inkassatsiya'
   | 'settings'
-  | 'otchot';
+  | 'otchot'
+  | 'prixot';
 
 export interface AuditEntry {
   id: string;

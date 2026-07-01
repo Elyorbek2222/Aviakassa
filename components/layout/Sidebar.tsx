@@ -26,22 +26,52 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const ALL_NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: <BarChart3 size={18} /> },
-  { href: '/tickets', label: 'Biletlar', icon: <FileText size={18} /> },
-  { href: '/payments', label: "To'lovlar", icon: <CreditCard size={18} /> },
-  { href: '/debts', label: 'Qarzdorlik', icon: <AlertTriangle size={18} /> },
-  { href: '/inkassatsiya', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
-  { href: '/upload', label: 'Excel Yuklash', icon: <Upload size={18} /> },
-  { href: '/otchot', label: 'Otchot', icon: <FolderClock size={18} /> },
-  { href: '/settings', label: 'Sozlamalar', icon: <Sliders size={18} /> },
-  { href: '/audit', label: 'Audit jurnali', icon: <History size={18} /> },
-  { href: '/begzod', label: 'Biletlar kirgazish', icon: <FileText size={18} /> },
-  { href: '/begzod/royxat', label: "Biletlar ro'yxati", icon: <ListChecks size={18} /> },
-  { href: '/begzod/debts', label: 'Qarzdorlar', icon: <AlertTriangle size={18} /> },
-  { href: '/kassir', label: 'Finansist', icon: <CreditCard size={18} /> },
-  { href: '/buxgalter', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
-  { href: '/qollanma', label: "Qo'llanma", icon: <BookOpen size={18} /> },
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+// Yon menyu bo'limlarga guruhlangan — kerakli sahifani tez topish uchun.
+// Rolga ko'ra bo'sh guruhlar avtomatik yashiriladi.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'Asosiy',
+    items: [{ href: '/', label: 'Dashboard', icon: <BarChart3 size={18} /> }],
+  },
+  {
+    title: 'Aviakassir',
+    items: [
+      { href: '/begzod', label: 'Biletlar kirgazish', icon: <FileText size={18} /> },
+      { href: '/begzod/royxat', label: "Biletlar ro'yxati", icon: <ListChecks size={18} /> },
+      { href: '/begzod/debts', label: 'Qarzdorlar', icon: <AlertTriangle size={18} /> },
+    ],
+  },
+  {
+    title: 'Moliya',
+    items: [
+      { href: '/kassir', label: 'Finansist', icon: <CreditCard size={18} /> },
+      { href: '/buxgalter', label: 'Buxgalter', icon: <Landmark size={18} /> },
+      { href: '/payments', label: "To'lovlar", icon: <CreditCard size={18} /> },
+      { href: '/inkassatsiya', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
+      { href: '/debts', label: 'Qarzdorlik', icon: <AlertTriangle size={18} /> },
+    ],
+  },
+  {
+    title: 'Hisobot',
+    items: [
+      { href: '/tickets', label: 'Biletlar', icon: <FileText size={18} /> },
+      { href: '/otchot', label: 'Otchot', icon: <FolderClock size={18} /> },
+      { href: '/audit', label: 'Audit jurnali', icon: <History size={18} /> },
+    ],
+  },
+  {
+    title: 'Sozlama',
+    items: [
+      { href: '/upload', label: 'Excel Yuklash', icon: <Upload size={18} /> },
+      { href: '/settings', label: 'Sozlamalar', icon: <Sliders size={18} /> },
+      { href: '/qollanma', label: "Qo'llanma", icon: <BookOpen size={18} /> },
+    ],
+  },
 ];
 
 const ROLE_ACCENT: Record<UserRole, string> = {
@@ -77,7 +107,7 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
   const role = user?.role ?? null;
   const accent = role ? ROLE_ACCENT[role] : '#4A5C50';
   const allowedPages = role ? (ROLE_PAGES[role] || []) : [];
-  const navItems = ALL_NAV_ITEMS.filter((item) => allowedPages.includes(item.href));
+  const isAllowed = (href: string) => allowedPages.includes(href);
 
   const handleLogout = async () => {
     await fetch('/api/avia/auth', { method: 'DELETE' });
@@ -135,50 +165,61 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation — bo'limlarga guruhlangan */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          const isHovered = hoveredItem === item.href;
+        {NAV_GROUPS.map((group) => {
+          const items = group.items.filter((it) => isAllowed(it.href));
+          if (items.length === 0) return null;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              prefetch
-              onClick={onClose}
-              onMouseEnter={() => setHoveredItem(item.href)}
-              onMouseLeave={() => setHoveredItem(null)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '9px 12px',
-                borderRadius: 9,
-                textDecoration: 'none',
-                fontSize: 13.5,
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#fff' : isHovered ? '#c8d8cc' : '#8A9A8F',
-                backgroundColor: isActive
-                  ? accent + '18'
-                  : isHovered
-                  ? '#1E2E24'
-                  : 'transparent',
-                borderLeft: `3px solid ${isActive ? accent : 'transparent'}`,
-                transition: 'all 0.15s ease',
-                transform: isHovered && !isActive ? 'translateX(3px)' : 'none',
-              }}
-            >
-              <span
-                style={{
-                  color: isActive ? accent : isHovered ? accent + 'CC' : '#4A5C50',
-                  transition: 'color 0.15s ease',
-                  display: 'flex',
-                }}
-              >
-                {item.icon}
-              </span>
-              {item.label}
-            </Link>
+            <div key={group.title} style={{ marginBottom: 8 }}>
+              <div style={{ padding: '8px 12px 4px', color: '#4A5C50', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                {group.title}
+              </div>
+              {items.map((item) => {
+                const isActive = pathname === item.href;
+                const isHovered = hoveredItem === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch
+                    onClick={onClose}
+                    onMouseEnter={() => setHoveredItem(item.href)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '9px 12px',
+                      borderRadius: 9,
+                      textDecoration: 'none',
+                      fontSize: 13.5,
+                      fontWeight: isActive ? 600 : 400,
+                      color: isActive ? '#fff' : isHovered ? '#c8d8cc' : '#8A9A8F',
+                      backgroundColor: isActive
+                        ? accent + '18'
+                        : isHovered
+                        ? '#1E2E24'
+                        : 'transparent',
+                      borderLeft: `3px solid ${isActive ? accent : 'transparent'}`,
+                      transition: 'all 0.15s ease',
+                      transform: isHovered && !isActive ? 'translateX(3px)' : 'none',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: isActive ? accent : isHovered ? accent + 'CC' : '#4A5C50',
+                        transition: 'color 0.15s ease',
+                        display: 'flex',
+                      }}
+                    >
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
           );
         })}
       </nav>

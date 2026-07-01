@@ -10,6 +10,7 @@ import type {
   SverkaData,
   OtchotListItem,
   Obmen,
+  PrixotDoc,
 } from '../types/avia';
 
 // ===== Generic jsonb hujjat yordamchilari =====
@@ -178,6 +179,8 @@ export async function listOtchotlar(): Promise<OtchotListItem[]> {
   const { data, error } = await getSupabase().from('otchot').select('id, doc');
   if (error) throw error;
   return (data || [])
+    // prixot-* hujjatlar shu jadvalda saqlanadi, lekin otchot emas — chiqarib tashlaymiz
+    .filter((r: { id: string }) => !r.id.startsWith('prixot-'))
     .map((r: { id: string; doc: SverkaData }) => ({
       id: r.id,
       oy: r.doc?.meta?.oy || r.id,
@@ -194,6 +197,34 @@ export async function saveOtchot(id: string, d: SverkaData): Promise<void> {
 
 export async function saveAprelSverka(d: SverkaData): Promise<void> {
   return saveOtchot('aprel-2026', d);
+}
+
+// ===== Prixot (biletlar uchun kirgan pul) =====
+// Bir oy = bitta hujjat (otchot jadvalida `prixot-YYYY-MM` id bilan). Tahrirlash
+// kam sonli qatorlarda va bitta admin tomonidan bo'lgani uchun har o'zgarishda
+// butun hujjat qayta yoziladi.
+// ponytail: bitta jsonb hujjat; qatorlar minglab bo'lsa alohida jadvalga o'tkaziladi.
+
+export async function getPrixotDoc(oy: string): Promise<PrixotDoc> {
+  const { data, error } = await getSupabase().from('otchot').select('doc').eq('id', `prixot-${oy}`).maybeSingle();
+  if (error) throw error;
+  return (data?.doc as PrixotDoc) || { oy, yozuvlar: [] };
+}
+
+export async function savePrixotDoc(d: PrixotDoc): Promise<void> {
+  const { error } = await getSupabase().from('otchot').upsert({ id: `prixot-${d.oy}`, doc: d }, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+// Mavjud prixot oylari (eng yangisi birinchi)
+export async function listPrixotOylar(): Promise<string[]> {
+  const { data, error } = await getSupabase().from('otchot').select('id');
+  if (error) throw error;
+  return (data || [])
+    .map((r: { id: string }) => r.id)
+    .filter((id: string) => id.startsWith('prixot-'))
+    .map((id: string) => id.slice('prixot-'.length))
+    .sort((a: string, b: string) => (a < b ? 1 : -1));
 }
 
 // ===== Settings =====
