@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { AviaTicket, AviaPayment, AirlineKey, PaymentType, Valyuta } from '../types/avia';
 import { AIRLINE_LABELS } from '../types/avia';
+import { todayStr } from './utils';
 
 // ===== Date Helpers =====
 
@@ -10,7 +11,7 @@ import { AIRLINE_LABELS } from '../types/avia';
  */
 function parseDate(value: unknown): string {
   if (value === null || value === undefined || value === '') {
-    return new Date().toISOString().split('T')[0];
+    return todayStr();
   }
 
   // Excel serial number (number)
@@ -43,7 +44,7 @@ function parseDate(value: unknown): string {
     return parsed.toISOString().split('T')[0];
   }
 
-  return new Date().toISOString().split('T')[0];
+  return todayStr();
 }
 
 function generateId(): string {

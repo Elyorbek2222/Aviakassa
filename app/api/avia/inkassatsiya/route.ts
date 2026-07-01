@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getInkassatsiya, addInkassatsiya } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
 import { requireRole } from '@/lib/api-auth';
+import { todayStr } from '@/lib/utils';
+import { validateAmount } from '@/lib/validate';
 import { AIRLINE_LABELS, type Inkassatsiya, type AirlineKey, type InkassatsiyaTuri } from '@/types/avia';
 
 // GET: return all inkassatsiya
@@ -22,7 +24,10 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
+
+    const summaRes = validateAmount(body.summa, 'Summa');
+    if (!summaRes.ok) return NextResponse.json({ error: summaRes.error }, { status: 400 });
 
     const turi: InkassatsiyaTuri = body.turi === 'kassa' ? 'kassa' : 'aviakompaniya';
     const airlineKey = body.airline as AirlineKey;
@@ -35,7 +40,7 @@ export async function POST(request: NextRequest) {
       sana: today,
       airline: airlineKey,
       airlineName,
-      summa: Number(body.summa) || 0,
+      summa: summaRes.value,
       izoh: body.izoh || '',
       turi,
     };

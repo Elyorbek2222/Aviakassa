@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getObmenlar, addObmen, updateObmen } from '@/lib/avia-storage';
-import { ticketEditRemainingMs } from '@/lib/utils';
+import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import type { Obmen } from '@/types/avia';
 
 // GET: barcha obmen yozuvlari
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     const item: Obmen = {
       id: `OBM-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      sana: new Date().toISOString().split('T')[0],
+      sana: todayStr(),
       usdSumma, kurs, uzsSumma,
       izoh: body.izoh || undefined,
     };

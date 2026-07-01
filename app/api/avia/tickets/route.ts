@@ -3,8 +3,9 @@ import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getTickets, addSingleTicket, clearTickets, updateTicket } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
-import { ticketEditRemainingMs } from '@/lib/utils';
+import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { requireRole } from '@/lib/api-auth';
+import { validateTicket } from '@/lib/validate';
 import { AIRLINE_LABELS, type AviaTicket, type AirlineKey } from '@/types/avia';
 
 // GET: return tickets with optional filters
@@ -60,21 +61,40 @@ export async function POST(request: NextRequest) {
     const agentName = auth.name;
 
     const body = await request.json();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
+
+    // Validatsiya — xato summa jimgina 0 ga aylanmasin
+    const valid = validateTicket(body);
+    if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
+    const { biletRaqam, yolovchi, tarif, sotishNarxi, passengerCount } = valid.value;
 
     const airlineKey = body.airline as AirlineKey;
     const airlineName = AIRLINE_LABELS[airlineKey] || body.airlineName || '';
-    const tarif = Number(body.tarif) || 0;
-    const sotishNarxi = Number(body.sotishNarxi) || 0;
+
+    const existing = await getTickets();
+
+    // Dublikat: bir xil bilet raqami + yo'lovchi. allowDuplicate bilan majburan
+    // qo'shsa bo'ladi (qayta rasmlashtirish holati uchun).
+    if (!body.allowDuplicate) {
+      const dup = existing.some(
+        (t) => t.biletRaqam === biletRaqam && t.yolovchi.trim().toLowerCase() === yolovchi.toLowerCase()
+      );
+      if (dup) {
+        return NextResponse.json(
+          { error: "Bu bilet raqami va yo'lovchi allaqachon kiritilgan", duplicate: true },
+          { status: 409 }
+        );
+      }
+    }
 
     const ticket: AviaTicket = {
       id: `TKT-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       sana: today,
       airline: airlineKey,
       airlineName,
-      biletRaqam: body.biletRaqam,
-      yolovchi: body.yolovchi,
-      passengerCount: body.passengerCount || 1,
+      biletRaqam,
+      yolovchi,
+      passengerCount,
       tarif,
       sotishNarxi,
       izoh: body.izoh,
@@ -85,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Google Sheets'ga ham yozish (asinxron — kutmaymiz)
     const airlineCols = { uzairways: 1, silk_avia: 2, centrum: 3, don_avia: 4, easybooking: 5, boshqa: 6 };
-    const row: (string | number)[] = [today, '', '', '', '', '', '', '', body.biletRaqam, body.yolovchi, tarif, sotishNarxi, agentName];
+    const row: (string | number)[] = [today, '', '', '', '', '', '', '', biletRaqam, yolovchi, tarif, sotishNarxi, agentName];
     const colIdx = airlineCols[airlineKey] ?? 6;
     row[colIdx] = tarif;
     if (airlineKey === 'boshqa') row[7] = airlineName;
@@ -143,6 +163,9 @@ export async function PATCH(request: NextRequest) {
       sotishNarxi: body.sotishNarxi !== undefined ? Number(body.sotishNarxi) : existing.sotishNarxi,
       izoh: body.izoh ?? existing.izoh,
     };
+
+    const valid = validateTicket(updated as unknown as Record<string, unknown>);
+    if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
 
     await updateTicket(updated);
     return NextResponse.json({ ticket: updated });

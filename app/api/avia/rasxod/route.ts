@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getRasxodlar, addRasxod, updateRasxod } from '@/lib/avia-storage';
-import { ticketEditRemainingMs } from '@/lib/utils';
+import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { requireRole } from '@/lib/api-auth';
+import { validateAmount } from '@/lib/validate';
 import type { Rasxod } from '@/types/avia';
 
 export async function GET() {
@@ -21,12 +22,15 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
+
+    const summaRes = validateAmount(body.summa, 'Summa');
+    if (!summaRes.ok) return NextResponse.json({ error: summaRes.error }, { status: 400 });
 
     const item: Rasxod = {
       id: `RSX-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       sana: today,
-      summa: Number(body.summa) || 0,
+      summa: summaRes.value,
       sabab: body.sabab || '',
     };
 
@@ -63,9 +67,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: '48 soatlik tahrirlash muddati tugagan' }, { status: 403 });
     }
 
+    const nextSumma = body.summa !== undefined ? Number(body.summa) : existing.summa;
+    const summaRes = validateAmount(nextSumma, 'Summa');
+    if (!summaRes.ok) return NextResponse.json({ error: summaRes.error }, { status: 400 });
+
     const updated: Rasxod = {
       ...existing, // id, sana o'zgarmaydi
-      summa: body.summa !== undefined ? Number(body.summa) : existing.summa,
+      summa: summaRes.value,
       sabab: body.sabab ?? existing.sabab,
     };
 

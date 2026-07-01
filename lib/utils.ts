@@ -6,6 +6,18 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 /**
+ * Bugungi sana (YYYY-MM-DD) Asia/Tashkent (UTC+5, DST yo'q) bo'yicha.
+ *
+ * `new Date().toISOString()` UTC beradi — server Vercel'da UTC bo'lgani uchun
+ * mahalliy vaqt 00:00–05:00 orasida yaratilgan yozuvlar KECHAGI sana bilan
+ * yozilib, kunlik kassa ostatkasini buzardi. Shuning uchun sana Tashkent
+ * mintaqasida hisoblanadi. `en-CA` locale ISO ko'rinishini (YYYY-MM-DD) beradi.
+ */
+export function todayStr(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
+}
+
+/**
  * Format money in short form: 1.2 mlrd, 45.3 mln, 120 ming, 5 600
  */
 export function formatMoney(n: number): string {

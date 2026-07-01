@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
-import { getPayments, addSinglePayment, clearPayments, updatePayment } from '@/lib/avia-storage';
+import { getPayments, addSinglePayment, clearPayments, updatePayment, getTickets } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
-import { ticketEditRemainingMs } from '@/lib/utils';
+import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
+import { validatePayment } from '@/lib/validate';
 import type { AviaPayment } from '@/types/avia';
 
 // GET: return payments with optional filters
@@ -52,21 +53,52 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
+
+    // Validatsiya — summa/kurs xato bo'lsa jimgina 0 ga aylanmasin
+    const valid = validatePayment(body);
+    if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
+    const { valyuta, summa, summAsl, kurs, tolovTuri } = valid.value;
+
+    const biletRaqam = body.biletRaqam ? String(body.biletRaqam).trim() : '';
 
     // Obmen: USD + biletsiz bo'lsa va mijoz nomi bo'sh bo'lsa — "Obmen" deb belgilanadi
-    const mijozIsmi = body.mijozIsmi || (body.valyuta === 'usd' && !body.biletRaqam ? 'Obmen' : '');
+    const mijozIsmi = body.mijozIsmi || (valyuta === 'usd' && !biletRaqam ? 'Obmen' : '');
+
+    // Ortiqcha to'lov himoyasi: bilet raqami bo'lsa, to'langan + yangi summa
+    // biletning sotish narxidan oshmasin (allowOverpay bilan majburan o'tkazsa bo'ladi).
+    if (biletRaqam && !body.allowOverpay) {
+      const tickets = await getTickets();
+      const ticket = tickets.find((t) => t.biletRaqam === biletRaqam);
+      if (ticket) {
+        const existingPayments = await getPayments();
+        const tolangan = existingPayments
+          .filter((p) => p.biletRaqam === biletRaqam)
+          .reduce((s, p) => s + p.summa, 0);
+        const qolgan = ticket.sotishNarxi - tolangan;
+        if (summa > qolgan) {
+          return NextResponse.json(
+            {
+              error: `To'lov qolgan qarzdan oshib ketdi. Qolgan qarz: ${qolgan.toLocaleString('ru-RU')} so'm`,
+              overpay: true,
+              qolgan,
+            },
+            { status: 409 }
+          );
+        }
+      }
+    }
 
     const payment: AviaPayment = {
       id: `PAY-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       sana: today,
-      biletRaqam: body.biletRaqam,
+      biletRaqam,
       mijozIsmi,
-      valyuta: body.valyuta || 'uzs',
-      summAsl: body.valyuta === 'usd' ? Number(body.summAsl) : undefined,
-      kurs: body.valyuta === 'usd' ? Number(body.kurs) : undefined,
-      summa: Number(body.summa) || 0,
-      tolovTuri: body.tolovTuri || 'naqd',
+      valyuta,
+      summAsl: valyuta === 'usd' ? summAsl : undefined,
+      kurs: valyuta === 'usd' ? kurs : undefined,
+      summa,
+      tolovTuri,
       izoh: body.izoh || '',
     };
 
@@ -132,6 +164,9 @@ export async function PATCH(request: NextRequest) {
       tolovTuri: body.tolovTuri ?? existing.tolovTuri,
       izoh: body.izoh ?? existing.izoh,
     };
+
+    const valid = validatePayment(updated as unknown as Record<string, unknown>);
+    if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
 
     await updatePayment(updated);
     return NextResponse.json({ payment: updated });

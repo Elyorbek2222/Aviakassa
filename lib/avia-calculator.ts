@@ -12,6 +12,7 @@ import type {
   AirlineKey,
   PaymentType,
 } from '../types/avia';
+import { todayStr } from './utils';
 
 // ===== Helpers =====
 
@@ -27,10 +28,6 @@ function getKomissiya(airline: AirlineKey, settings: AviaSettings): number {
 function calculateFoyda(ticket: AviaTicket, settings: AviaSettings): number {
   const komissiya = getKomissiya(ticket.airline, settings);
   return (ticket.sotishNarxi - ticket.tarif) + (ticket.tarif * komissiya / 100);
-}
-
-function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
 }
 
 // ===== KPI =====

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings } from '@/lib/avia-storage';
+import { todayStr } from '@/lib/utils';
 import type {
   AviaKPI,
   AviaSalesPoint,
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
       tickets = tickets.filter((t) => t.airline === airlineFilter);
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
 
     // KPI calculations
     const bugunBiletlar = tickets.filter((t) => t.sana === today).length;
@@ -109,16 +110,20 @@ export async function GET(request: NextRequest) {
       if (qarz > 0) jamiQarzdorlik += qarz;
     }
 
-    // Customer debts (bilet-level: sotishNarxi - tolangan)
+    // Customer debts (bilet-level: sotishNarxi - tolangan).
+    // Faqat bilet raqami BOR to'lovlar bilet-qarziga bog'lanadi. Bo'sh raqamli
+    // to'lovlar (masalan "Obmen") mijoz qarziga hisoblanmaydi — aks holda bo'sh
+    // raqamli biletlar bir-birining/obmenning summasini "to'langan" deb olardi.
     const paymentsByTicket = new Map<string, number>();
     for (const p of payments) {
+      if (!p.biletRaqam) continue;
       paymentsByTicket.set(p.biletRaqam, (paymentsByTicket.get(p.biletRaqam) || 0) + p.summa);
     }
 
     const debts: DebtRecord[] = [];
     let settledCount = 0;
     for (const t of tickets) {
-      const tolangan = paymentsByTicket.get(t.biletRaqam) || 0;
+      const tolangan = t.biletRaqam ? (paymentsByTicket.get(t.biletRaqam) || 0) : 0;
       const qarz = t.sotishNarxi - tolangan;
       if (qarz > 0) {
         debts.push({

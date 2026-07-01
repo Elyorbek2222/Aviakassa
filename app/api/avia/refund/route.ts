@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRefundlar, addRefund } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
 import { requireRole } from '@/lib/api-auth';
+import { todayStr } from '@/lib/utils';
+import { validateAmount } from '@/lib/validate';
 import type { Refund } from '@/types/avia';
 
 export async function GET() {
@@ -19,14 +21,17 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
+
+    const summaRes = validateAmount(body.summa, 'Summa');
+    if (!summaRes.ok) return NextResponse.json({ error: summaRes.error }, { status: 400 });
 
     const item: Refund = {
       id: `RFD-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       sana: today,
       biletRaqam: body.biletRaqam || '',
       mijozIsmi: body.mijozIsmi || '',
-      summa: Number(body.summa) || 0,
+      summa: summaRes.value,
       izoh: body.izoh || '',
     };
 

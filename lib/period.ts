@@ -1,5 +1,7 @@
 // Davr (period) yordamchilari — Bugun / oy / Hammasi tanlash uchun.
 
+import { todayStr } from './utils';
+
 export type PeriodKey = string; // 'today' | 'all' | 'YYYY-MM'
 
 export const UZ_MONTHS = [
@@ -34,7 +36,7 @@ export function monthOptions(count = 12): { key: string; label: string }[] {
 export function periodRange(key: string): { from: string | null; to: string | null } {
   if (key === 'all') return { from: null, to: null };
   if (key === 'today') {
-    const t = new Date().toISOString().split('T')[0];
+    const t = todayStr();
     return { from: t, to: t };
   }
   const m = key.match(/^(\d{4})-(\d{2})$/);
