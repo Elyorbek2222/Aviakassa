@@ -519,7 +519,7 @@ export default function BegzodPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Aviakassir — Bilet Yozish</h1>
+          <h1 style={{ color: '#fff', fontSize: 24, fontWeight: 700, margin: 0 }}>Aviakassir — Biletlar kirgazish</h1>
           <div style={{ color: '#4A5C50', fontSize: 12, marginTop: 4 }}>Davr: {periodLabel(period)}</div>
         </div>
         <PeriodFilter value={period} onChange={setPeriod} />

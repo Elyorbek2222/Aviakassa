@@ -15,6 +15,7 @@ import {
   BookOpen,
   FolderClock,
   History,
+  ListChecks,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -34,7 +35,8 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/otchot', label: 'Otchot', icon: <FolderClock size={18} /> },
   { href: '/settings', label: 'Sozlamalar', icon: <Sliders size={18} /> },
   { href: '/audit', label: 'Audit jurnali', icon: <History size={18} /> },
-  { href: '/begzod', label: 'Bilet Yozish', icon: <FileText size={18} /> },
+  { href: '/begzod', label: 'Biletlar kirgazish', icon: <FileText size={18} /> },
+  { href: '/begzod/royxat', label: "Biletlar ro'yxati", icon: <ListChecks size={18} /> },
   { href: '/begzod/debts', label: 'Qarzdorlar', icon: <AlertTriangle size={18} /> },
   { href: '/kassir', label: 'Finansist', icon: <CreditCard size={18} /> },
   { href: '/buxgalter', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
