@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
-import { Plane, FileText, Wallet, CheckCircle2, AlertTriangle, Target, Pencil, Lock, X } from 'lucide-react';
+import { Plane, FileText, Wallet, CheckCircle2, AlertTriangle, Target, Pencil, Lock, X, ClipboardPaste } from 'lucide-react';
 import { formatMoney, ticketEditRemainingMs, todayStr } from '@/lib/utils';
+import { parseTicketText } from '@/lib/ticket-parse';
 import { AIRLINE_LABELS, type AirlineKey, type AviaTicket } from '@/types/avia';
 import PeriodFilter from '@/components/avia/PeriodFilter';
 import { periodRange, periodLabel } from '@/lib/period';
@@ -19,10 +20,48 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
     tarif: '',
     sotishNarxi: '',
     izoh: '',
+    sana: todayStr(), // sotuv sanasi — default bugun, orqaga (masalan iyun) qo'ysa bo'ladi
+    qoshimchaFoyda: '', // alohida (ekstra) foyda — ixtiyoriy
+    qoshimchaIzoh: '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [pasteText, setPasteText] = useState('');
+  const [parseInfo, setParseInfo] = useState('');
   const biletRef = useRef<HTMLInputElement>(null);
+  const tarifRef = useRef<HTMLInputElement>(null);
+
+  // Biletdan avtomatik to'ldirish: yo'lovchi, bilet raqami, aviakompaniya (+ narx bo'lsa)
+  const FIELD_LABELS: Record<string, string> = {
+    yolovchi: "Yo'lovchi", biletRaqam: 'Bilet raqami', airline: 'Aviakompaniya', narx: 'Narx', izoh: 'Izoh',
+  };
+  const doParse = (raw: string) => {
+    const p = parseTicketText(raw);
+    if (p.found.length === 0) {
+      setParseInfo("❌ Ma'lumot topilmadi — qo'lda kiriting");
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      airline: p.airline ?? f.airline,
+      biletRaqam: p.biletRaqam ?? f.biletRaqam,
+      yolovchi: p.yolovchi ?? f.yolovchi,
+      sotishNarxi: p.sotishNarxi != null ? String(p.sotishNarxi) : f.sotishNarxi,
+      izoh: p.izoh ?? f.izoh,
+    }));
+    setParseInfo('✓ ' + p.found.map((k) => FIELD_LABELS[k] || k).join(', ') + " to'ldirildi. Narxlarni tekshiring.");
+    // Ism/raqam to'ldi — endi narxlarga o'tamiz
+    setTimeout(() => tarifRef.current?.focus(), 0);
+  };
+  const handleParse = () => doParse(pasteText);
+  const onPasteTicket = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = e.clipboardData.getData('text');
+    if (pasted && pasted.length > 20) {
+      e.preventDefault();
+      setPasteText(pasted);
+      doParse(pasted);
+    }
+  };
 
   const submitTicket = (allowDuplicate: boolean) =>
     fetch('/api/avia/tickets', {
@@ -34,6 +73,9 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
         tarif: Number(form.tarif),
         sotishNarxi: Number(form.sotishNarxi),
         izoh: form.izoh || undefined,
+        sana: form.sana || undefined,
+        qoshimchaFoyda: form.qoshimchaFoyda ? Number(form.qoshimchaFoyda) : undefined,
+        qoshimchaIzoh: form.qoshimchaIzoh || undefined,
         allowDuplicate,
       }),
     });
@@ -62,7 +104,9 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
         setMessage('Bilet saqlandi!');
         // Ketma-ket tez kiritish uchun: aviakompaniyani saqlab qolamiz va
         // kursorni darhol bilet raqami maydoniga qaytaramiz.
-        setForm((f) => ({ airline: f.airline, biletRaqam: '', yolovchi: '', passengerCount: 1, tarif: '', sotishNarxi: '', izoh: '' }));
+        setForm((f) => ({ airline: f.airline, biletRaqam: '', yolovchi: '', passengerCount: 1, tarif: '', sotishNarxi: '', izoh: '', sana: f.sana, qoshimchaFoyda: '', qoshimchaIzoh: '' }));
+        setPasteText('');
+        setParseInfo('');
         biletRef.current?.focus();
         onSuccess();
       } else {
@@ -109,6 +153,47 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
         )}
       </h3>
       <form onSubmit={handleSubmit}>
+        {/* Tez to'ldirish: biletni bu yerga nusxa-joylash (paste) qiling */}
+        <div style={{ marginBottom: 18, padding: 12, borderRadius: 10, border: '1px dashed rgba(124,255,79,0.35)', backgroundColor: 'rgba(124,255,79,0.04)' }}>
+          <label style={{ ...labelStyle, color: '#7CFF4F', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <ClipboardPaste size={14} /> Biletni bu yerga tashlang (nusxa-joylash)
+          </label>
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            onPaste={onPasteTicket}
+            placeholder="Uzbekistan Airways yoki boshqa bilet matnini shu yerga qo'ying — ism, raqam, aviakompaniya avtomatik to'ladi..."
+            rows={3}
+            style={{ ...inputStyle, resize: 'vertical', minHeight: 58, fontSize: 12 }}
+          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
+            <button type="button" onClick={handleParse} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #7CFF4F', backgroundColor: 'rgba(124,255,79,0.14)', color: '#7CFF4F', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              To&apos;ldirish
+            </button>
+            {pasteText && (
+              <button type="button" onClick={() => { setPasteText(''); setParseInfo(''); }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 12, cursor: 'pointer' }}>
+                Tozalash
+              </button>
+            )}
+            {parseInfo && <span style={{ fontSize: 11.5, color: parseInfo.startsWith('✓') ? '#7CFF4F' : '#F5A623' }}>{parseInfo}</span>}
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Sotuv sanasi</label>
+          <input
+            type="date"
+            value={form.sana}
+            max={todayStr()}
+            onChange={(e) => setForm({ ...form, sana: e.target.value })}
+            required
+            style={inputStyle}
+          />
+          {form.sana !== todayStr() && (
+            <div style={{ color: '#F5A623', fontSize: 11, marginTop: 5 }}>
+              ⚠️ Orqa sana — foyda shu oyga (masalan iyunga) yoziladi, bugungi kunga emas.
+            </div>
+          )}
+        </div>
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Aviakompaniya</label>
           <select
@@ -155,6 +240,7 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
           <div>
             <label style={labelStyle}>Tarif (UZS)</label>
             <input
+              ref={tarifRef}
               type="number"
               value={form.tarif}
               onChange={(e) => setForm({ ...form, tarif: e.target.value })}
@@ -185,6 +271,32 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
             style={inputStyle}
           />
         </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Qo&apos;shimcha foyda (UZS) — ixtiyoriy</label>
+          <input
+            type="number"
+            value={form.qoshimchaFoyda}
+            onChange={(e) => setForm({ ...form, qoshimchaFoyda: e.target.value })}
+            placeholder="0"
+            min={0}
+            style={inputStyle}
+          />
+          <div style={{ color: '#4A5C50', fontSize: 11, marginTop: 5 }}>
+            Shu biletdan olingan alohida (ekstra) foyda. Sof foydaga qo&apos;shiladi.
+          </div>
+        </div>
+        {form.qoshimchaFoyda && Number(form.qoshimchaFoyda) > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Qo&apos;shimcha foyda izohi</label>
+            <input
+              type="text"
+              value={form.qoshimchaIzoh}
+              onChange={(e) => setForm({ ...form, qoshimchaIzoh: e.target.value })}
+              placeholder="Masalan: qimmat sotildi / maxsus marja"
+              style={inputStyle}
+            />
+          </div>
+        )}
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Kommentariya</label>
           <textarea
@@ -246,6 +358,9 @@ function EditTicketModal({ ticket, onClose, onSaved }: { ticket: AviaTicket; onC
     tarif: String(ticket.tarif),
     sotishNarxi: String(ticket.sotishNarxi),
     izoh: ticket.izoh || '',
+    sana: ticket.sana,
+    qoshimchaFoyda: ticket.qoshimchaFoyda != null ? String(ticket.qoshimchaFoyda) : '',
+    qoshimchaIzoh: ticket.qoshimchaIzoh || '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -266,6 +381,9 @@ function EditTicketModal({ ticket, onClose, onSaved }: { ticket: AviaTicket; onC
           tarif: Number(form.tarif),
           sotishNarxi: Number(form.sotishNarxi),
           izoh: form.izoh || undefined,
+          sana: form.sana || undefined,
+          qoshimchaFoyda: form.qoshimchaFoyda === '' ? '' : Number(form.qoshimchaFoyda),
+          qoshimchaIzoh: form.qoshimchaIzoh,
         }),
       });
       if (res.ok) { onSaved(); onClose(); }
@@ -288,6 +406,10 @@ function EditTicketModal({ ticket, onClose, onSaved }: { ticket: AviaTicket; onC
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#8A9A8F', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
         </div>
         <form onSubmit={submit}>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Sotuv sanasi</label>
+            <input type="date" value={form.sana} max={todayStr()} onChange={(e) => setForm({ ...form, sana: e.target.value })} required style={inputStyle} />
+          </div>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Aviakompaniya</label>
             <select value={form.airline} onChange={(e) => setForm({ ...form, airline: e.target.value as AirlineKey })} style={inputStyle}>
@@ -315,6 +437,14 @@ function EditTicketModal({ ticket, onClose, onSaved }: { ticket: AviaTicket; onC
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Yo&apos;lovchilar soni</label>
             <input type="number" value={form.passengerCount} onChange={(e) => setForm({ ...form, passengerCount: Number(e.target.value) })} min={1} style={inputStyle} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Qo&apos;shimcha foyda (UZS)</label>
+            <input type="number" value={form.qoshimchaFoyda} min={0} placeholder="0" onChange={(e) => setForm({ ...form, qoshimchaFoyda: e.target.value })} style={inputStyle} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Qo&apos;shimcha foyda izohi</label>
+            <input type="text" value={form.qoshimchaIzoh} placeholder="Masalan: qimmat sotildi" onChange={(e) => setForm({ ...form, qoshimchaIzoh: e.target.value })} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Kommentariya</label>

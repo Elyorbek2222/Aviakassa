@@ -249,6 +249,13 @@ export default function AdminDashboard() {
           sub="Xarajatlar chegirilgan"
         />
         <KPICard
+          label="Qo'shimcha Foyda"
+          value={formatMoney(kpi.qoshimchaFoyda)}
+          icon={<Sparkles size={20} />}
+          color="#F5A623"
+          sub="Ekstra marja (Begzod)"
+        />
+        <KPICard
           label="Qarzdorlik"
           value={formatMoney(kpi.jamiQarzdorlik)}
           icon={<AlertTriangle size={20} />}
