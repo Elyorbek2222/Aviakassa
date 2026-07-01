@@ -17,6 +17,7 @@ import {
   FolderClock,
   History,
   ListChecks,
+  Coins,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -61,6 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/tickets', label: 'Biletlar', icon: <FileText size={18} /> },
       { href: '/otchot', label: 'Otchot', icon: <FolderClock size={18} /> },
+      { href: '/prixot', label: 'Prixot sverka', icon: <Coins size={18} /> },
       { href: '/audit', label: 'Audit jurnali', icon: <History size={18} /> },
     ],
   },

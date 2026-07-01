@@ -49,10 +49,13 @@ export default function PrixotPage() {
 
   // Summary — faqat serverdagi ma'lumot bo'yicha (tahrir saqlangach yangilanadi)
   const totals = useMemo(() => {
-    const t: Record<string, number> = { bilet: 0, otkazma: 0, obmen: 0, foyda: 0, tur: 0, boshqa: 0 };
+    const t: Record<PrixotTur, number> = { bilet: 0, otkazma: 0, obmen: 0, foyda: 0, tur: 0, boshqa: 0 };
     for (const r of rows) t[r.tur] = (t[r.tur] || 0) + r.summa;
-    const kirganPul = PRIXOT_HISOB_TURLARI.reduce((s, k) => s + (t[k] || 0), 0);
-    return { ...t, kirganPul, farq: kirganPul - otchotBeg };
+    const kirganPul = PRIXOT_HISOB_TURLARI.reduce((s, k) => s + t[k], 0);
+    return {
+      bilet: t.bilet, otkazma: t.otkazma, obmen: t.obmen, foyda: t.foyda, tur: t.tur, boshqa: t.boshqa,
+      kirganPul, farq: kirganPul - otchotBeg,
+    };
   }, [rows, otchotBeg]);
 
   const filtered = useMemo(() => {
@@ -164,7 +167,7 @@ export default function PrixotPage() {
               </select>
               <input placeholder="Bilet raqami (ixtiyoriy)" value={nw.biletRaqam} onChange={(e) => setNw({ ...nw, biletRaqam: e.target.value })} style={{ ...inp, flex: '1 1 150px' }} />
               <button onClick={add} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: `1px solid ${C.green}`, backgroundColor: C.green + '18', color: C.green, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                <Plus size={15} /> Qo'shish
+                <Plus size={15} /> Qo‘shish
               </button>
             </div>
           )}
