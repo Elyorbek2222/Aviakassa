@@ -71,13 +71,15 @@ export async function GET(request: NextRequest) {
     const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
     const stok = jamiPrixod - jamiInkassatsiya - jamiRasxod - jamiRefund;
 
-    // Foyda = (sotish - tarif) + (tarif * komissiya%) for each ticket
+    // Foyda = (sotish - tarif) + (tarif * komissiya%) + qo'shimcha foyda — har bilet uchun
     const sofFoyda = tickets.reduce((s, t) => {
       const usluga = t.sotishNarxi - t.tarif;
       const config = settings.airlines.find((a) => a.key === t.airline);
       const komissiya = t.tarif * ((config?.komissiya ?? 0) / 100);
-      return s + usluga + komissiya;
+      return s + usluga + komissiya + (t.qoshimchaFoyda ?? 0);
     }, 0);
+    // Shundan Begzodning alohida kiritgan ekstra foydasi (alohida ko'rsatish uchun)
+    const jamiQoshimchaFoyda = tickets.reduce((s, t) => s + (t.qoshimchaFoyda ?? 0), 0);
 
     // Partner debts (airline-level)
     const airlineMap = new Map<AirlineKey, { biletlarSumma: number; inkassatsiya: number; biletlar: number }>();
@@ -160,7 +162,7 @@ export async function GET(request: NextRequest) {
       existing.biletlar += 1;
       existing.sotuv += t.sotishNarxi;
       const cfg = settings.airlines.find((a) => a.key === t.airline);
-      existing.foyda += (t.sotishNarxi - t.tarif) + t.tarif * ((cfg?.komissiya ?? 0) / 100);
+      existing.foyda += (t.sotishNarxi - t.tarif) + t.tarif * ((cfg?.komissiya ?? 0) / 100) + (t.qoshimchaFoyda ?? 0);
       airlineStatsMap.set(t.airline, existing);
     }
     const airlineStats: AirlineStat[] = Array.from(airlineStatsMap.entries()).map(
@@ -174,7 +176,7 @@ export async function GET(request: NextRequest) {
       existing.biletlar += 1;
       existing.sotuv += t.sotishNarxi;
       const acfg = settings.airlines.find((a) => a.key === t.airline);
-      existing.foyda += (t.sotishNarxi - t.tarif) + t.tarif * ((acfg?.komissiya ?? 0) / 100);
+      existing.foyda += (t.sotishNarxi - t.tarif) + t.tarif * ((acfg?.komissiya ?? 0) / 100) + (t.qoshimchaFoyda ?? 0);
       agentStatsMap.set(t.agent, existing);
     }
     const agentStats: AgentStat[] = Array.from(agentStatsMap.entries()).map(
@@ -195,6 +197,7 @@ export async function GET(request: NextRequest) {
       stok,
       jamiQarzdorlik,
       sofFoyda,
+      qoshimchaFoyda: jamiQoshimchaFoyda,
       naqd,
       plastik,
       perechisleniya,

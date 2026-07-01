@@ -22,12 +22,12 @@ function getKomissiya(airline: AirlineKey, settings: AviaSettings): number {
 }
 
 /**
- * Foyda formula: (sotishNarxi - tarif) + (tarif * komissiya% / 100)
- * = markup profit + airline commission
+ * Foyda formula: (sotishNarxi - tarif) + (tarif * komissiya% / 100) + qoshimchaFoyda
+ * = markup profit + airline commission + alohida (ekstra) foyda
  */
 function calculateFoyda(ticket: AviaTicket, settings: AviaSettings): number {
   const komissiya = getKomissiya(ticket.airline, settings);
-  return (ticket.sotishNarxi - ticket.tarif) + (ticket.tarif * komissiya / 100);
+  return (ticket.sotishNarxi - ticket.tarif) + (ticket.tarif * komissiya / 100) + (ticket.qoshimchaFoyda ?? 0);
 }
 
 // ===== KPI =====
@@ -55,6 +55,7 @@ export function calculateKPI(
 
   // Net profit
   const sofFoyda = tickets.reduce((sum, t) => sum + calculateFoyda(t, settings), 0);
+  const qoshimchaFoyda = tickets.reduce((sum, t) => sum + (t.qoshimchaFoyda ?? 0), 0);
 
   // Payment breakdown
   const breakdown = calculatePaymentBreakdown(payments);
@@ -69,6 +70,7 @@ export function calculateKPI(
     stok,
     jamiQarzdorlik,
     sofFoyda,
+    qoshimchaFoyda,
     naqd: breakdown.naqd,
     plastik: breakdown.plastik,
     perechisleniya: breakdown.perechisleniya,

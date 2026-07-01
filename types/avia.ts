@@ -27,6 +27,8 @@ export interface AviaTicket {
   sotishNarxi: number; // UZS — sotish narx
   izoh?: string; // Kommentariya
   agent: string;
+  qoshimchaFoyda?: number; // Begzod alohida kiritgan qo'shimcha (ekstra) foyda — UZS
+  qoshimchaIzoh?: string; // qo'shimcha foyda izohi (ixtiyoriy)
 }
 
 // ===== Payment =====
@@ -137,6 +139,7 @@ export interface AviaKPI {
   stok: number; // prixod (payments) - inkassatsiya
   jamiQarzdorlik: number; // partner debt
   sofFoyda: number;
+  qoshimchaFoyda: number; // shundan Begzodning alohida kiritgan ekstra foydasi (UZS)
   naqd: number;
   plastik: number;
   perechisleniya: number;

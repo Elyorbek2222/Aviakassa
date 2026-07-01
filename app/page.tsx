@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { BarChart3, Plane, TrendingUp, Wallet, AlertTriangle, DollarSign } from 'lucide-react';
+import { BarChart3, Plane, TrendingUp, Wallet, AlertTriangle, DollarSign, Sparkles } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
 import type { AviaKPI, AviaSalesPoint, AirlineStat, DebtRecord, PartnerDebt } from '@/types/avia';
 import {

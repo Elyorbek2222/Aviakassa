@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     // Validatsiya — xato summa jimgina 0 ga aylanmasin
     const valid = validateTicket(body);
     if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
-    const { biletRaqam, yolovchi, tarif, sotishNarxi, passengerCount } = valid.value;
+    const { biletRaqam, yolovchi, tarif, sotishNarxi, passengerCount, sana: saleSana, qoshimchaFoyda, qoshimchaIzoh } = valid.value;
 
     const airlineKey = body.airline as AirlineKey;
     const airlineName = AIRLINE_LABELS[airlineKey] || body.airlineName || '';
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     const ticket: AviaTicket = {
       id: `TKT-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      sana: today,
+      sana: saleSana || today, // berilsa — sotuv sanasi (orqaga), aks holda bugun
       airline: airlineKey,
       airlineName,
       biletRaqam,
@@ -100,6 +100,8 @@ export async function POST(request: NextRequest) {
       sotishNarxi,
       izoh: body.izoh,
       agent: agentName,
+      qoshimchaFoyda,
+      qoshimchaIzoh,
     };
 
     const tickets = await addSingleTicket(ticket);
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Google Sheets'ga ham yozish (asinxron — kutmaymiz)
     const airlineCols = { uzairways: 1, silk_avia: 2, centrum: 3, don_avia: 4, easybooking: 5, boshqa: 6 };
-    const row: (string | number)[] = [today, '', '', '', '', '', '', '', biletRaqam, yolovchi, tarif, sotishNarxi, agentName];
+    const row: (string | number)[] = [ticket.sana, '', '', '', '', '', '', '', biletRaqam, yolovchi, tarif, sotishNarxi, agentName];
     const colIdx = airlineCols[airlineKey] ?? 6;
     row[colIdx] = tarif;
     if (airlineKey === 'boshqa') row[7] = airlineName;
@@ -156,7 +158,7 @@ export async function PATCH(request: NextRequest) {
 
     const airlineKey = (body.airline as AirlineKey) ?? existing.airline;
     const updated: AviaTicket = {
-      ...existing, // id, sana, agent o'zgarmaydi
+      ...existing, // id, agent o'zgarmaydi (sana tahrirlanishi mumkin)
       airline: airlineKey,
       airlineName: AIRLINE_LABELS[airlineKey] || body.airlineName || existing.airlineName,
       biletRaqam: body.biletRaqam ?? existing.biletRaqam,
@@ -165,6 +167,15 @@ export async function PATCH(request: NextRequest) {
       tarif: body.tarif !== undefined ? Number(body.tarif) : existing.tarif,
       sotishNarxi: body.sotishNarxi !== undefined ? Number(body.sotishNarxi) : existing.sotishNarxi,
       izoh: body.izoh ?? existing.izoh,
+      sana: body.sana ? String(body.sana) : existing.sana,
+      qoshimchaFoyda:
+        body.qoshimchaFoyda !== undefined
+          ? (body.qoshimchaFoyda === '' || body.qoshimchaFoyda === null ? undefined : Number(body.qoshimchaFoyda))
+          : existing.qoshimchaFoyda,
+      qoshimchaIzoh:
+        body.qoshimchaIzoh !== undefined
+          ? (String(body.qoshimchaIzoh).trim() || undefined)
+          : existing.qoshimchaIzoh,
     };
 
     const valid = validateTicket(updated as unknown as Record<string, unknown>);

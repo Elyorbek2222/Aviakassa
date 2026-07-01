@@ -5,6 +5,7 @@
 // Har validator `{ ok, value } | { ok: false, error }` qaytaradi (xato — o'zbekcha).
 
 import type { PaymentType, Valyuta } from '@/types/avia';
+import { todayStr } from './utils';
 
 export type Ok<T> = { ok: true; value: T };
 export type Err = { ok: false; error: string };
@@ -29,6 +30,15 @@ export function toText(v: unknown): string | null {
   return s.length > 0 ? s : null;
 }
 
+// YYYY-MM-DD sana. Noto'g'ri format yoki mavjud bo'lmagan sana (masalan 2026-02-31) => null.
+export function toDateStr(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.trim() : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10) === s ? s : null; // haqiqiy sana ekanini tasdiqlash
+}
+
 const PAYMENT_TYPES: PaymentType[] = ['naqd', 'plastik', 'perechisleniya'];
 const VALYUTALAR: Valyuta[] = ['uzs', 'usd'];
 
@@ -41,6 +51,9 @@ export interface TicketInput {
   tarif: number;
   sotishNarxi: number;
   passengerCount: number;
+  sana?: string; // sotuv sanasi (ixtiyoriy) — berilmasa route bugungi kunni qo'yadi
+  qoshimchaFoyda?: number; // alohida (ekstra) foyda — ixtiyoriy
+  qoshimchaIzoh?: string;
 }
 
 export function validateTicket(body: Record<string, unknown>): Result<TicketInput> {
@@ -60,7 +73,27 @@ export function validateTicket(body: Record<string, unknown>): Result<TicketInpu
   const passengerCount = rawCount === undefined || rawCount === null || rawCount === '' ? 1 : toNumber(rawCount);
   if (passengerCount === null || passengerCount < 1) return err("Yo'lovchilar soni kamida 1 bo'lishi kerak");
 
-  return ok({ biletRaqam, yolovchi, tarif, sotishNarxi, passengerCount });
+  // Sotuv sanasi (ixtiyoriy). Orqaga sana qo'yish mumkin (masalan iyun bilet iyulda
+  // kiritilsa), lekin kelajakdagi sana rad etiladi — foyda noto'g'ri oyga tushmasin.
+  let sana: string | undefined;
+  if (body.sana !== undefined && body.sana !== null && body.sana !== '') {
+    const d = toDateStr(body.sana);
+    if (!d) return err("Sotuv sanasi noto'g'ri (YYYY-MM-DD)");
+    if (d > todayStr()) return err("Sotuv sanasi kelajakda bo'la olmaydi");
+    sana = d;
+  }
+
+  // Qo'shimcha (ekstra) foyda — ixtiyoriy, manfiy bo'lmasin.
+  let qoshimchaFoyda: number | undefined;
+  if (body.qoshimchaFoyda !== undefined && body.qoshimchaFoyda !== null && body.qoshimchaFoyda !== '') {
+    const q = toNumber(body.qoshimchaFoyda);
+    if (q === null || q < 0) return err("Qo'shimcha foyda noto'g'ri (manfiy yoki bo'sh)");
+    qoshimchaFoyda = q;
+  }
+
+  const qoshimchaIzoh = toText(body.qoshimchaIzoh) ?? undefined;
+
+  return ok({ biletRaqam, yolovchi, tarif, sotishNarxi, passengerCount, sana, qoshimchaFoyda, qoshimchaIzoh });
 }
 
 export interface PaymentInput {
