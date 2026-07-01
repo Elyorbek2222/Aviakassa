@@ -5,6 +5,7 @@ import { getPayments, addSinglePayment, clearPayments, updatePayment, getTickets
 import { appendToSheet } from '@/lib/gsheet';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { validatePayment } from '@/lib/validate';
+import { logChange } from '@/lib/audit';
 import type { AviaPayment } from '@/types/avia';
 
 // GET: return payments with optional filters
@@ -104,6 +105,8 @@ export async function POST(request: NextRequest) {
 
     const payments = await addSinglePayment(payment);
 
+    logChange(user, 'create', 'payment', payment.id, `To'lov: ${payment.mijozIsmi || payment.biletRaqam || '—'} — ${payment.summa.toLocaleString('ru-RU')} so'm`, { after: payment }).catch(() => {});
+
     // Google Sheets'ga yozish
     const row = [
       today,
@@ -169,6 +172,7 @@ export async function PATCH(request: NextRequest) {
     if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
 
     await updatePayment(updated);
+    logChange(user, 'update', 'payment', updated.id, `To'lov tahrirlandi: ${updated.mijozIsmi || updated.biletRaqam || '—'}`, { before: existing, after: updated }).catch(() => {});
     return NextResponse.json({ payment: updated });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
@@ -185,6 +189,7 @@ export async function DELETE() {
       return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 403 });
     }
     await clearPayments();
+    logChange(user, 'clear', 'payment', '', 'Barcha to\'lovlar tozalandi').catch(() => {});
     return NextResponse.json({ message: 'Barcha to\'lovlar tozalandi' });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

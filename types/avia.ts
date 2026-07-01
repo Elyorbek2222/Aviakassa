@@ -1,3 +1,5 @@
+import type { UserRole } from '@/lib/auth';
+
 // ===== Airline Types =====
 
 export type AirlineKey = 'uzairways' | 'silk_avia' | 'centrum' | 'don_avia' | 'easybooking' | 'boshqa';
@@ -208,4 +210,32 @@ export interface OtchotListItem {
   oy: string;
   manbalar: string[];
   sverka: SverkaStats;
+}
+
+// ===== Audit log (kim / nima / qachon) =====
+
+export type AuditAction = 'create' | 'update' | 'delete' | 'clear';
+
+// Auditda kuzatiladigan entity turlari
+export type AuditEntity =
+  | 'ticket'
+  | 'payment'
+  | 'rasxod'
+  | 'refund'
+  | 'obmen'
+  | 'inkassatsiya'
+  | 'settings'
+  | 'otchot';
+
+export interface AuditEntry {
+  id: string;
+  ts: string; // ISO timestamp
+  actorName: string; // sessiyadagi foydalanuvchi nomi
+  actorRole: UserRole;
+  action: AuditAction;
+  entity: AuditEntity;
+  entityId: string; // '' — clear/bulk uchun
+  summary: string; // qisqa o'zbekcha tavsif (jadvalda ko'rinadi)
+  before?: unknown; // update/delete oldingi holat (ixtiyoriy)
+  after?: unknown; // create/update yangi holat (ixtiyoriy)
 }

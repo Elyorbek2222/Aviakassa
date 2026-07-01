@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSettings, updateSettings } from '@/lib/avia-storage';
 import { requireRole } from '@/lib/api-auth';
 import { validateKomissiya } from '@/lib/validate';
+import { logChange } from '@/lib/audit';
 import type { AviaSettings } from '@/types/avia';
 
 // GET: return settings
@@ -31,6 +32,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updated = await updateSettings(body);
+    logChange(auth, 'update', 'settings', 'default', 'Aviakompaniya sozlamalari yangilandi', { after: updated }).catch(() => {});
     return NextResponse.json({ settings: updated });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

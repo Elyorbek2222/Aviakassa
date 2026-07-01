@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { Plane, FileText, Wallet, CheckCircle2, AlertTriangle, Target, Pencil, Lock, X } from 'lucide-react';
-import { formatMoney, ticketEditRemainingMs } from '@/lib/utils';
+import { formatMoney, ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { AIRLINE_LABELS, type AirlineKey, type AviaTicket } from '@/types/avia';
 import PeriodFilter from '@/components/avia/PeriodFilter';
 import { periodRange, periodLabel } from '@/lib/period';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-function TicketForm({ onSuccess }: { onSuccess: () => void }) {
+function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => void; suggestions: string[]; todayCount: number }) {
   const [form, setForm] = useState({
     airline: 'uzairways' as AirlineKey,
     biletRaqam: '',
@@ -22,6 +22,21 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const biletRef = useRef<HTMLInputElement>(null);
+
+  const submitTicket = (allowDuplicate: boolean) =>
+    fetch('/api/avia/tickets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...form,
+        airlineName: AIRLINE_LABELS[form.airline] || form.airline,
+        tarif: Number(form.tarif),
+        sotishNarxi: Number(form.sotishNarxi),
+        izoh: form.izoh || undefined,
+        allowDuplicate,
+      }),
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,24 +44,30 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
     setMessage('');
 
     try {
-      const res = await fetch('/api/avia/tickets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          airlineName: AIRLINE_LABELS[form.airline] || form.airline,
-          tarif: Number(form.tarif),
-          sotishNarxi: Number(form.sotishNarxi),
-          izoh: form.izoh || undefined,
-        }),
-      });
+      let res = await submitTicket(false);
+
+      // 409 = dublikat bilet: foydalanuvchidan tasdiq so'rab, baribir qo'shish
+      if (res.status === 409) {
+        const d = await res.json().catch(() => ({}));
+        if (d.duplicate && confirm(`${d.error}. Baribir qo'shilsinmi?`)) {
+          res = await submitTicket(true);
+        } else {
+          setMessage(d.error || 'Dublikat bilet');
+          setLoading(false);
+          return;
+        }
+      }
 
       if (res.ok) {
         setMessage('Bilet saqlandi!');
-        setForm({ airline: 'uzairways', biletRaqam: '', yolovchi: '', passengerCount: 1, tarif: '', sotishNarxi: '', izoh: '' });
+        // Ketma-ket tez kiritish uchun: aviakompaniyani saqlab qolamiz va
+        // kursorni darhol bilet raqami maydoniga qaytaramiz.
+        setForm((f) => ({ airline: f.airline, biletRaqam: '', yolovchi: '', passengerCount: 1, tarif: '', sotishNarxi: '', izoh: '' }));
+        biletRef.current?.focus();
         onSuccess();
       } else {
-        setMessage('Xatolik yuz berdi');
+        const d = await res.json().catch(() => ({}));
+        setMessage(d.error || 'Xatolik yuz berdi');
       }
     } catch {
       setMessage('Serverga ulanib bo\'lmadi');
@@ -78,9 +99,14 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
         padding: 24,
       }}
     >
-      <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <FileText size={20} style={{ color: '#7CFF4F' }} />
         Yangi Bilet
+        {todayCount > 0 && (
+          <span style={{ marginLeft: 'auto', padding: '2px 10px', borderRadius: 20, backgroundColor: '#7CFF4F18', color: '#7CFF4F', fontSize: 12, fontWeight: 700 }}>
+            Bugun: {todayCount} ta
+          </span>
+        )}
       </h3>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 14 }}>
@@ -98,11 +124,13 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Bilet Raqami</label>
           <input
+            ref={biletRef}
             type="text"
             value={form.biletRaqam}
             onChange={(e) => setForm({ ...form, biletRaqam: e.target.value })}
             placeholder="001-1234567890"
             required
+            autoFocus
             style={inputStyle}
           />
         </div>
@@ -110,12 +138,18 @@ function TicketForm({ onSuccess }: { onSuccess: () => void }) {
           <label style={labelStyle}>Yo&apos;lovchi Ismi</label>
           <input
             type="text"
+            list="yolovchi-suggestions"
             value={form.yolovchi}
             onChange={(e) => setForm({ ...form, yolovchi: e.target.value })}
             placeholder="Familiya Ism"
             required
             style={inputStyle}
           />
+          <datalist id="yolovchi-suggestions">
+            {suggestions.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
           <div>
@@ -324,6 +358,11 @@ export default function BegzodPage() {
   const tickets: AviaTicket[] = ticketsData?.tickets || [];
   const debts: DebtRow[] = reportsData?.debts || [];
 
+  // Tez kiritish uchun yordamchilar: bugungi biletlar soni va yo'lovchi ismlari (avto-taklif)
+  const today = todayStr();
+  const todayCount = tickets.filter((t) => t.sana === today).length;
+  const passengerSuggestions = Array.from(new Set(tickets.map((t) => t.yolovchi).filter(Boolean))).slice(0, 50);
+
   const [editing, setEditing] = useState<AviaTicket | null>(null);
   // Har daqiqa qayta hisoblash — 48 soatlik muddat jonli yangilanib tursin
   const [now, setNow] = useState(() => Date.now());
@@ -358,7 +397,7 @@ export default function BegzodPage() {
 
       <div className="split-2">
         {/* Left: Form */}
-        <TicketForm onSuccess={refresh} />
+        <TicketForm onSuccess={refresh} suggestions={passengerSuggestions} todayCount={todayCount} />
 
         {/* Right: KPI + Goal + Tickets */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -418,6 +457,9 @@ export default function BegzodPage() {
             <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Plane size={18} style={{ color: '#F5A623' }} />
               O&apos;z Biletlarim
+              <span style={{ marginLeft: 'auto', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>
+                {periodLabel(period)} · {tickets.length} ta
+              </span>
             </h3>
             {tickets.length === 0 ? (
               <div style={{ color: '#4A5C50', textAlign: 'center', padding: 20, fontSize: 14 }}>Bu davrda bilet yo&apos;q</div>

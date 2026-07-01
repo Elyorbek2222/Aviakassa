@@ -5,6 +5,7 @@ import { getRasxodlar, addRasxod, updateRasxod } from '@/lib/avia-storage';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { requireRole } from '@/lib/api-auth';
 import { validateAmount } from '@/lib/validate';
+import { logChange } from '@/lib/audit';
 import type { Rasxod } from '@/types/avia';
 
 export async function GET() {
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     };
 
     const all = await addRasxod(item);
+    logChange(auth, 'create', 'rasxod', item.id, `Rasxod: ${item.summa.toLocaleString('ru-RU')} so'm — ${item.sabab || '—'}`, { after: item }).catch(() => {});
     return NextResponse.json({ rasxod: item, total: all.length });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
@@ -78,6 +80,7 @@ export async function PATCH(request: NextRequest) {
     };
 
     await updateRasxod(updated);
+    logChange(user, 'update', 'rasxod', updated.id, `Rasxod tahrirlandi: ${updated.summa.toLocaleString('ru-RU')} so'm`, { before: existing, after: updated }).catch(() => {});
     return NextResponse.json({ rasxod: updated });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

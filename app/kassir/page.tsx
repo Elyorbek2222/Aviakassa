@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import useSWR from 'swr';
 import {
   Banknote, Smartphone, Building2, ArrowUpRight, ArrowDownRight,
@@ -27,7 +27,7 @@ const ACCENT = T.blue;
 const card: React.CSSProperties = { backgroundColor: T.card, border: `1px solid ${T.line}`, borderRadius: 14, padding: 20 };
 const fmtUsd = (n: number) => n.toLocaleString('en-US');
 
-function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
+function PaymentForm({ onSuccess, tickets, payments }: { onSuccess: () => void; tickets: AviaTicket[]; payments: AviaPayment[] }) {
   const [form, setForm] = useState({
     biletRaqam: '',
     mijozIsmi: '',
@@ -41,30 +41,68 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Aqlli bilet bog'lash: kiritilgan bilet raqamiga mos biletni topib, qolgan
+  // qarzni ko'rsatamiz va mijoz ismini avtomatik to'ldiramiz.
+  const bilet = form.biletRaqam.trim();
+  const matchedTicket = useMemo(
+    () => (bilet ? tickets.find((t) => t.biletRaqam === bilet) : undefined),
+    [bilet, tickets]
+  );
+  const tolangan = useMemo(
+    () => (bilet ? payments.filter((p) => p.biletRaqam === bilet).reduce((s, p) => s + p.summa, 0) : 0),
+    [bilet, payments]
+  );
+  const qolgan = matchedTicket ? matchedTicket.sotishNarxi - tolangan : null;
+  const enteredSumma = Number(form.summa) || 0;
+  const overpay = qolgan !== null && enteredSumma > qolgan;
+
+  // Bilet raqami o'zgarganda: mos bilet bo'lsa va mijoz ismi bo'sh bo'lsa — avtomatik to'ldirish
+  const onBiletChange = (val: string) => {
+    const t = tickets.find((tk) => tk.biletRaqam === val.trim());
+    setForm((f) => ({ ...f, biletRaqam: val, mijozIsmi: !f.mijozIsmi && t ? t.yolovchi : f.mijozIsmi }));
+  };
+
+  const submitPayment = (allowOverpay: boolean) =>
+    fetch('/api/avia/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...form,
+        mijozIsmi: form.mijozIsmi || (form.valyuta === 'usd' && !form.biletRaqam ? 'Obmen' : form.mijozIsmi),
+        summAsl: form.valyuta === 'usd' ? Number(form.summAsl) : undefined,
+        kurs: form.valyuta === 'usd' ? Number(form.kurs) : undefined,
+        summa: Number(form.summa),
+        allowOverpay,
+      }),
+    });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
     try {
-      const res = await fetch('/api/avia/payments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          mijozIsmi: form.mijozIsmi || (form.valyuta === 'usd' && !form.biletRaqam ? 'Obmen' : form.mijozIsmi),
-          summAsl: form.valyuta === 'usd' ? Number(form.summAsl) : undefined,
-          kurs: form.valyuta === 'usd' ? Number(form.kurs) : undefined,
-          summa: Number(form.summa),
-        }),
-      });
+      let res = await submitPayment(false);
+
+      // 409 = qolgan qarzdan ortiq to'lov: tasdiq so'rab, baribir kiritish
+      if (res.status === 409) {
+        const d = await res.json().catch(() => ({}));
+        if (d.overpay && confirm(`${d.error}. Baribir kiritilsinmi?`)) {
+          res = await submitPayment(true);
+        } else {
+          setMessage(d.error || "Ortiqcha to'lov");
+          setLoading(false);
+          return;
+        }
+      }
 
       if (res.ok) {
         setMessage("To'lov saqlandi!");
         setForm({ biletRaqam: '', mijozIsmi: '', valyuta: 'uzs', summAsl: '', kurs: '', summa: '', tolovTuri: 'naqd', izoh: '' });
         onSuccess();
       } else {
-        setMessage('Xatolik yuz berdi');
+        const d = await res.json().catch(() => ({}));
+        setMessage(d.error || 'Xatolik yuz berdi');
       }
     } catch {
       setMessage("Serverga ulanib bo'lmadi");
@@ -78,14 +116,40 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
       {form.valyuta === 'usd' ? (
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Bilet Raqami (ixtiyoriy)</label>
-          <input type="text" value={form.biletRaqam} onChange={(e) => setForm({ ...form, biletRaqam: e.target.value })} placeholder="Bo'sh = Obmen" style={inputStyle} />
+          <input type="text" value={form.biletRaqam} onChange={(e) => onBiletChange(e.target.value)} placeholder="Bo'sh = Obmen" style={inputStyle} />
         </div>
       ) : (
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Bilet Raqami</label>
-          <input type="text" value={form.biletRaqam} onChange={(e) => setForm({ ...form, biletRaqam: e.target.value })} placeholder="001-1234567890" style={inputStyle} />
+          <input type="text" value={form.biletRaqam} onChange={(e) => onBiletChange(e.target.value)} placeholder="001-1234567890" style={inputStyle} />
         </div>
       )}
+
+      {/* Aqlli bilet kartasi: mos bilet topilganda qolgan qarzni ko'rsatadi */}
+      {matchedTicket && (
+        <div style={{
+          marginBottom: 14, padding: '10px 12px', borderRadius: 8, fontSize: 12.5,
+          backgroundColor: overpay ? '#F5A62312' : '#14B8A612',
+          border: `1px solid ${overpay ? T.orange : T.teal}40`,
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: T.text }}>
+            <span style={{ fontWeight: 600 }}>{matchedTicket.yolovchi}</span>
+            <span style={{ color: T.mut }}>Sotish: {formatMoney(matchedTicket.sotishNarxi)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            <span style={{ color: T.mut }}>To&apos;langan: {formatMoney(tolangan)}</span>
+            <span style={{ color: (qolgan ?? 0) > 0 ? T.orange : T.green, fontWeight: 700 }}>
+              Qolgan qarz: {formatMoney(qolgan ?? 0)}
+            </span>
+          </div>
+          {overpay && (
+            <div style={{ marginTop: 6, color: T.orange, fontWeight: 600 }}>
+              ⚠ Kiritilgan summa qolgan qarzdan oshib ketmoqda
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>Mijoz Ismi</label>
         <input type="text" value={form.mijozIsmi} onChange={(e) => setForm({ ...form, mijozIsmi: e.target.value })} placeholder={form.valyuta === 'usd' && !form.biletRaqam ? 'Obmen' : 'Familiya Ism'} style={inputStyle} />
@@ -740,7 +804,7 @@ export default function FinansistPage() {
                 <span style={{ color: activeTab.color }}>{activeTab.icon}</span>
                 {tab === 'prixod' ? 'Yangi Prixod' : tab === 'rasxod' ? 'Rasxod (Chiqim)' : tab === 'refund' ? 'Refund (Pul qaytarish)' : tab === 'obmen' ? 'Obmen — USD ni som ga' : 'Inkassatsiya'}
               </h3>
-              {tab === 'prixod' && <PaymentForm onSuccess={refreshAll} />}
+              {tab === 'prixod' && <PaymentForm onSuccess={refreshAll} tickets={allTickets} payments={allPayments} />}
               {tab === 'rasxod' && <RasxodForm onSuccess={refreshAll} />}
               {tab === 'refund' && <RefundForm onSuccess={refreshAll} />}
               {tab === 'obmen' && <ObmenForm onSuccess={refreshAll} usdMavjud={usdOxiri} />}

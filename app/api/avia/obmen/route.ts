@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getObmenlar, addObmen, updateObmen } from '@/lib/avia-storage';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
+import { logChange } from '@/lib/audit';
 import type { Obmen } from '@/types/avia';
 
 // GET: barcha obmen yozuvlari
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
       izoh: body.izoh || undefined,
     };
     const all = await addObmen(item);
+    logChange(user, 'create', 'obmen', item.id, `Obmen: $${item.usdSumma} × ${item.kurs} = ${item.uzsSumma.toLocaleString('ru-RU')} so'm`, { after: item }).catch(() => {});
     return NextResponse.json({ obmen: item, total: all.length });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
@@ -75,6 +77,7 @@ export async function PATCH(request: NextRequest) {
       izoh: body.izoh ?? existing.izoh,
     };
     await updateObmen(updated);
+    logChange(user, 'update', 'obmen', updated.id, `Obmen tahrirlandi: $${updated.usdSumma} × ${updated.kurs}`, { before: existing, after: updated }).catch(() => {});
     return NextResponse.json({ obmen: updated });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

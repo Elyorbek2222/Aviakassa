@@ -6,6 +6,7 @@ import { appendToSheet } from '@/lib/gsheet';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { requireRole } from '@/lib/api-auth';
 import { validateTicket } from '@/lib/validate';
+import { logChange } from '@/lib/audit';
 import { AIRLINE_LABELS, type AviaTicket, type AirlineKey } from '@/types/avia';
 
 // GET: return tickets with optional filters
@@ -103,6 +104,8 @@ export async function POST(request: NextRequest) {
 
     const tickets = await addSingleTicket(ticket);
 
+    logChange(auth, 'create', 'ticket', ticket.id, `Bilet qo'shildi: ${ticket.biletRaqam} — ${ticket.yolovchi}`, { after: ticket }).catch(() => {});
+
     // Google Sheets'ga ham yozish (asinxron — kutmaymiz)
     const airlineCols = { uzairways: 1, silk_avia: 2, centrum: 3, don_avia: 4, easybooking: 5, boshqa: 6 };
     const row: (string | number)[] = [today, '', '', '', '', '', '', '', biletRaqam, yolovchi, tarif, sotishNarxi, agentName];
@@ -168,6 +171,7 @@ export async function PATCH(request: NextRequest) {
     if (!valid.ok) return NextResponse.json({ error: valid.error }, { status: 400 });
 
     await updateTicket(updated);
+    logChange(user, 'update', 'ticket', updated.id, `Bilet tahrirlandi: ${updated.biletRaqam}`, { before: existing, after: updated }).catch(() => {});
     return NextResponse.json({ ticket: updated });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });
@@ -184,6 +188,7 @@ export async function DELETE() {
       return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 403 });
     }
     await clearTickets();
+    logChange(user, 'clear', 'ticket', '', 'Barcha biletlar tozalandi').catch(() => {});
     return NextResponse.json({ message: 'Barcha biletlar tozalandi' });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

@@ -12,7 +12,7 @@ export interface AuthUser {
 export const SESSION_COOKIE_NAME = 'avia-session';
 
 export const ROLE_PAGES: Record<UserRole, string[]> = {
-  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/upload', '/otchot', '/settings', '/qollanma', '/kassir', '/begzod', '/begzod/debts', '/buxgalter'],
+  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/upload', '/otchot', '/settings', '/audit', '/qollanma', '/kassir', '/begzod', '/begzod/debts', '/buxgalter'],
   begzod: ['/begzod', '/begzod/debts', '/otchot', '/qollanma'],
   kassir: ['/kassir', '/otchot', '/qollanma'],
   buxgalter: ['/buxgalter', '/otchot', '/qollanma'],

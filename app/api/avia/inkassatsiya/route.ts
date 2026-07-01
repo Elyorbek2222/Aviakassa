@@ -4,6 +4,7 @@ import { appendToSheet } from '@/lib/gsheet';
 import { requireRole } from '@/lib/api-auth';
 import { todayStr } from '@/lib/utils';
 import { validateAmount } from '@/lib/validate';
+import { logChange } from '@/lib/audit';
 import { AIRLINE_LABELS, type Inkassatsiya, type AirlineKey, type InkassatsiyaTuri } from '@/types/avia';
 
 // GET: return all inkassatsiya
@@ -46,6 +47,8 @@ export async function POST(request: NextRequest) {
     };
 
     const items = await addInkassatsiya(item);
+
+    logChange(auth, 'create', 'inkassatsiya', item.id, `Inkassatsiya (${item.turi}): ${item.airlineName} — ${item.summa.toLocaleString('ru-RU')} so'm`, { after: item }).catch(() => {});
 
     // Google Sheets'ga yozish
     appendToSheet('Inkassatsiya', [today, airlineName, item.summa, item.izoh]).catch(() => {});

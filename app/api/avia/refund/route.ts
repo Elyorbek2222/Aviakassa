@@ -4,6 +4,7 @@ import { appendToSheet } from '@/lib/gsheet';
 import { requireRole } from '@/lib/api-auth';
 import { todayStr } from '@/lib/utils';
 import { validateAmount } from '@/lib/validate';
+import { logChange } from '@/lib/audit';
 import type { Refund } from '@/types/avia';
 
 export async function GET() {
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
     };
 
     const all = await addRefund(item);
+
+    logChange(auth, 'create', 'refund', item.id, `Refund: ${item.mijozIsmi || item.biletRaqam || '—'} — ${item.summa.toLocaleString('ru-RU')} so'm`, { after: item }).catch(() => {});
 
     // Google Sheets'ga nusxa (Tolovlar sheetga REFUND deb yoziladi)
     appendToSheet('Tolovlar', [today, item.mijozIsmi, -item.summa, 'REFUND', item.biletRaqam, 'UZS', '', '', item.izoh || 'Refund']).catch(() => {});
