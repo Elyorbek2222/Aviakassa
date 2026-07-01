@@ -18,27 +18,12 @@ export function todayStr(): string {
 }
 
 /**
- * Format money in short form: 1.2 mlrd, 45.3 mln, 120 ming, 5 600
+ * Format money — TO'LIQ (aniq) summa, bo'shliq bilan ajratilgan: "5 000 000".
+ * (Ilgari qisqartirilgan "5.0 mln" edi — endi aniq raqam ko'rsatiladi.)
+ * Valyuta qo'shimchasi yo'q — chaqiruvchi kerak bo'lsa " so'm" qo'shadi.
  */
 export function formatMoney(n: number): string {
-  if (n === 0) return '0';
-
-  const abs = Math.abs(n);
-  const sign = n < 0 ? '-' : '';
-
-  if (abs >= 1_000_000_000) {
-    const val = abs / 1_000_000_000;
-    return sign + (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + ' mlrd';
-  }
-  if (abs >= 1_000_000) {
-    const val = abs / 1_000_000;
-    return sign + (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + ' mln';
-  }
-  if (abs >= 1_000) {
-    const val = abs / 1_000;
-    return sign + (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + ' ming';
-  }
-  return sign + abs.toLocaleString('uz-UZ');
+  return Math.round(n).toLocaleString('ru-RU');
 }
 
 /**

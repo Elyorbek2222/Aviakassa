@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
@@ -140,9 +141,10 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
           const isActive = pathname === item.href;
           const isHovered = hoveredItem === item.href;
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
+              prefetch
               onClick={onClose}
               onMouseEnter={() => setHoveredItem(item.href)}
               onMouseLeave={() => setHoveredItem(null)}
@@ -176,7 +178,7 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
                 {item.icon}
               </span>
               {item.label}
-            </a>
+            </Link>
           );
         })}
       </nav>

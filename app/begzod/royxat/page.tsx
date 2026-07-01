@@ -33,6 +33,9 @@ export default function BegzodRoyxatPage() {
   const debtMap = new Map<string, DebtRow>();
   for (const d of debts) debtMap.set(d.biletRaqam, d);
 
+  // Ikkala manba (biletlar + qarz/holat) yuklanmaguncha status chaqnamasin
+  const loading = !ticketsData || !reportsData;
+
   // Eng yangisi tepada
   const rows = tickets.slice().sort((a, b) => (a.sana < b.sana ? 1 : a.sana > b.sana ? -1 : 0));
 
@@ -83,6 +86,10 @@ export default function BegzodRoyxatPage() {
         <button type="button" onClick={setAll} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Hammasi</button>
       </div>
 
+      {loading ? (
+        <div style={{ color: '#8A9A8F', textAlign: 'center', padding: 60, backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12 }}>Yuklanmoqda...</div>
+      ) : (
+      <>
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 18 }}>
         {kpiCard('Jami biletlar', String(tickets.length), '#F5A623', Plane)}
@@ -150,6 +157,8 @@ export default function BegzodRoyxatPage() {
           Jami: {rows.length} ta bilet
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
