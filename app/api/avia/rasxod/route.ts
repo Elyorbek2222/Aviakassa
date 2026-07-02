@@ -3,13 +3,15 @@ import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getRasxodlar, addRasxod, updateRasxod } from '@/lib/avia-storage';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
-import { requireRole } from '@/lib/api-auth';
+import { requireRole, requireAuth } from '@/lib/api-auth';
 import { validateAmount } from '@/lib/validate';
 import { logChange } from '@/lib/audit';
 import type { Rasxod } from '@/types/avia';
 
 export async function GET() {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     return NextResponse.json({ rasxodlar: await getRasxodlar() });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

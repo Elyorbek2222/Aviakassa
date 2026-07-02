@@ -28,7 +28,7 @@ export const ROLE_HOME: Record<UserRole, string> = {
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin: 'Administrator',
+  admin: 'Elyor',
   kassir: 'Finansist',
   begzod: 'Aviakassir',
   buxgalter: 'Buxgalter',

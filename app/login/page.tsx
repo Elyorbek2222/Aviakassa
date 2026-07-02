@@ -165,7 +165,7 @@ export default function LoginPage() {
             <Plane size={32} style={{ transform: 'rotate(-45deg)' }} />
           </div>
           <h1 style={{ color: '#fff', fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
-            Avia Kassa
+            SEM Travel
           </h1>
           <p style={{ color: '#4A5C50', fontSize: 13, margin: '6px 0 0', letterSpacing: '0.02em' }}>
             Boshqaruv tizimiga kirish

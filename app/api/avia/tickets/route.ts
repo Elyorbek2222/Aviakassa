@@ -4,7 +4,7 @@ import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getTickets, addSingleTicket, clearTickets, updateTicket } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
-import { requireRole } from '@/lib/api-auth';
+import { requireRole, requireAuth } from '@/lib/api-auth';
 import { validateTicket } from '@/lib/validate';
 import { logChange } from '@/lib/audit';
 import { AIRLINE_LABELS, type AviaTicket, type AirlineKey } from '@/types/avia';
@@ -12,6 +12,8 @@ import { AIRLINE_LABELS, type AviaTicket, type AirlineKey } from '@/types/avia';
 // GET: return tickets with optional filters
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { searchParams } = new URL(request.url);
     const agent = searchParams.get('agent');
     const airline = searchParams.get('airline');

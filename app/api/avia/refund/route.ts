@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRefundlar, addRefund } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
-import { requireRole } from '@/lib/api-auth';
+import { requireRole, requireAuth } from '@/lib/api-auth';
 import { todayStr } from '@/lib/utils';
 import { validateAmount } from '@/lib/validate';
 import { logChange } from '@/lib/audit';
@@ -9,6 +9,8 @@ import type { Refund } from '@/types/avia';
 
 export async function GET() {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     return NextResponse.json({ refundlar: await getRefundlar() });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

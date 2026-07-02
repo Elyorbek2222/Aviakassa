@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSettings, updateSettings } from '@/lib/avia-storage';
-import { requireRole } from '@/lib/api-auth';
+import { requireRole, requireAuth } from '@/lib/api-auth';
 import { validateKomissiya } from '@/lib/validate';
 import { logChange } from '@/lib/audit';
 import type { AviaSettings } from '@/types/avia';
@@ -8,6 +8,8 @@ import type { AviaSettings } from '@/types/avia';
 // GET: return settings
 export async function GET() {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const settings = await getSettings();
     return NextResponse.json({ settings });
   } catch {

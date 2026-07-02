@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInkassatsiya, addInkassatsiya } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
-import { requireRole } from '@/lib/api-auth';
+import { requireRole, requireAuth } from '@/lib/api-auth';
 import { todayStr } from '@/lib/utils';
 import { validateAmount } from '@/lib/validate';
 import { logChange } from '@/lib/audit';
@@ -10,6 +10,8 @@ import { AIRLINE_LABELS, type Inkassatsiya, type AirlineKey, type InkassatsiyaTu
 // GET: return all inkassatsiya
 export async function GET() {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const items = await getInkassatsiya();
     return NextResponse.json({ inkassatsiya: items });
   } catch {

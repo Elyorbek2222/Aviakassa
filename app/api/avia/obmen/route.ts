@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getObmenlar, addObmen, updateObmen } from '@/lib/avia-storage';
+import { requireAuth } from '@/lib/api-auth';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { logChange } from '@/lib/audit';
 import type { Obmen } from '@/types/avia';
@@ -9,6 +10,8 @@ import type { Obmen } from '@/types/avia';
 // GET: barcha obmen yozuvlari
 export async function GET() {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     return NextResponse.json({ obmenlar: await getObmenlar() });
   } catch {
     return NextResponse.json({ error: 'Server xatosi' }, { status: 500 });

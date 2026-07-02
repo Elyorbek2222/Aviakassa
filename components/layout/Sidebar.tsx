@@ -92,7 +92,7 @@ const ROLE_ACCENT: Record<UserRole, string> = {
 };
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  admin: 'Admin',
+  admin: 'Elyor',
   kassir: 'Finansist',
   begzod: 'Aviakassir',
   buxgalter: 'Buxgalter',
@@ -168,7 +168,7 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
         </div>
         <div>
           <div style={{ color: '#fff', fontSize: 15, fontWeight: 800, letterSpacing: '-0.3px', lineHeight: 1.1 }}>
-            AviaKassa
+            SEM Travel
           </div>
           <div style={{ color: '#4A5C50', fontSize: 10, letterSpacing: '0.08em' }}>
             MANAGEMENT

@@ -70,7 +70,7 @@ const GUIDES: Record<UserRole, Guide> = {
     maqsad: 'Har bir zayavka boʻyicha prixod/rasxodni oʻz vaqtida, xatosiz va bitta joyda kiritish.',
   },
   admin: {
-    title: 'Admin — Qoʻllanma',
+    title: 'Elyor — Qoʻllanma',
     color: '#7CFF4F',
     intro: 'Siz butun biznesning umumiy moliyaviy holatini oyma-oy nazorat qilasiz.',
     steps: [

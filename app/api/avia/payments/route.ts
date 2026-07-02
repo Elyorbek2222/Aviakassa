@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
 import { getPayments, addSinglePayment, addPayments, clearPayments, updatePayment, getTickets } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
@@ -11,6 +12,8 @@ import type { AviaPayment, PaymentType } from '@/types/avia';
 // GET: return payments with optional filters
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { searchParams } = new URL(request.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');

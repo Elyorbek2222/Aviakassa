@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 // Saytga mos OG rasm (havola preview): qorong'i fon, yashil samolyot logo, SEM wordmark.
-export const alt = 'SEM AviaKassa — Bilet Hisobi';
+export const alt = 'SEM Travel — Bilet Hisobi';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -64,12 +64,12 @@ export default function OgImage() {
         {/* SEM AVIA wordmark */}
         <div style={{ display: 'flex', alignItems: 'baseline' }}>
           <span style={{ fontSize: 100, fontWeight: 800, color: '#7CFF4F', letterSpacing: -2, marginRight: 18 }}>SEM</span>
-          <span style={{ fontSize: 100, fontWeight: 800, color: '#ffffff', letterSpacing: -2 }}>AVIA</span>
+          <span style={{ fontSize: 100, fontWeight: 800, color: '#ffffff', letterSpacing: -2 }}>TRAVEL</span>
         </div>
 
         {/* Mahsulot nomi */}
         <div style={{ display: 'flex', marginTop: 10, fontSize: 36, fontWeight: 700, color: '#ffffff' }}>
-          AviaKassa — Bilet Hisobi
+          Bilet va Turizm Hisobi
         </div>
         <div style={{ display: 'flex', marginTop: 14, fontSize: 24, color: '#8A9A8F' }}>
           Aviabilet hisobi va boshqaruv tizimi

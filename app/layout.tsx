@@ -16,22 +16,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://semavia.vercel.app"),
   title: {
-    default: "SEM AviaKassa — Bilet Hisobi",
-    template: "%s · SEM AviaKassa",
+    default: "SEM Travel — Bilet Hisobi",
+    template: "%s · SEM Travel",
   },
-  description: "Aviabilet hisobi va boshqaruv tizimi — SEM Avia",
-  applicationName: "SEM AviaKassa",
+  description: "Aviabilet va turizm hisobi — SEM Travel",
+  applicationName: "SEM Travel",
   openGraph: {
-    title: "SEM AviaKassa — Bilet Hisobi",
+    title: "SEM Travel — Bilet Hisobi",
     description: "Aviabilet hisobi va boshqaruv tizimi",
-    siteName: "SEM AviaKassa",
+    siteName: "SEM Travel",
     url: "https://semavia.vercel.app",
     locale: "uz_UZ",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "SEM AviaKassa — Bilet Hisobi",
+    title: "SEM Travel — Bilet Hisobi",
     description: "Aviabilet hisobi va boshqaruv tizimi",
   },
 };

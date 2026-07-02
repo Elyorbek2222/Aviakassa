@@ -30,3 +30,14 @@ export async function requireRole(roles: UserRole[]): Promise<AuthUser | NextRes
   }
   return user;
 }
+
+// Faqat tizimga kirganlikni talab qiladi (rol muhim emas). O'qish (GET)
+// endpointlarini login'siz kirishdan himoya qilish uchun — ma'lumot sizib
+// chiqmasin. Sahifalar rolga ko'ra allaqachon filtrlanadi (proxy + ROLE_PAGES).
+export async function requireAuth(): Promise<AuthUser | NextResponse> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Avtorizatsiya talab qilinadi' }, { status: 401 });
+  }
+  return user;
+}

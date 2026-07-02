@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings } from '@/lib/avia-storage';
 import { todayStr } from '@/lib/utils';
+import { requireAuth } from '@/lib/api-auth';
 import type {
   AviaKPI,
   AviaSalesPoint,
@@ -14,6 +15,8 @@ import type {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
     const { searchParams } = new URL(request.url);
     const from = searchParams.get('from');
     const to = searchParams.get('to');

@@ -47,7 +47,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             }}>
               <Plane size={16} style={{ transform: 'rotate(-45deg)' }} />
             </div>
-            <span style={{ color: '#fff', fontSize: 15, fontWeight: 800, letterSpacing: '-0.3px' }}>AviaKassa</span>
+            <span style={{ color: '#fff', fontSize: 15, fontWeight: 800, letterSpacing: '-0.3px' }}>SEM Travel</span>
           </div>
         </div>
 

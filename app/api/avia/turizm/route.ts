@@ -10,6 +10,8 @@ import type { TurizmYozuv, TurizmTur } from '@/types/avia';
 // GET ?oy=YYYY-MM — o'sha oy yozuvlari; aks holda mavjud oylar ro'yxati.
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireRole(['admin', 'sardor']);
+    if (auth instanceof NextResponse) return auth;
     const oy = new URL(request.url).searchParams.get('oy');
     if (oy) {
       const doc = await getTurizmDoc(oy);

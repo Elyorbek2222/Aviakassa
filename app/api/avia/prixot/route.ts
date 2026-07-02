@@ -19,6 +19,8 @@ async function otchotBegSum(oy: string): Promise<number> {
 // GET ?oy=YYYY-MM — o'sha oy yozuvlari; aks holda mavjud oylar ro'yxati.
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireRole(['admin']);
+    if (auth instanceof NextResponse) return auth;
     const oy = new URL(request.url).searchParams.get('oy');
     if (oy) {
       const doc = await getPrixotDoc(oy);
