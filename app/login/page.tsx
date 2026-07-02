@@ -47,6 +47,9 @@ export default function LoginPage() {
         case 'buxgalter':
           router.push('/buxgalter');
           break;
+        case 'sardor':
+          router.push('/turizm');
+          break;
         default:
           router.push('/');
       }

@@ -40,6 +40,9 @@ function PaymentForm({ onSuccess, tickets, payments }: { onSuccess: () => void; 
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  // Aralash to'lov: bir bilet uchun naqd/plastik/perechisleniya alohida summalar (faqat UZS)
+  const [aralash, setAralash] = useState(false);
+  const [qism, setQism] = useState({ naqd: '', plastik: '', perechisleniya: '' });
 
   // Aqlli bilet bog'lash: kiritilgan bilet raqamiga mos biletni topib, qolgan
   // qarzni ko'rsatamiz va mijoz ismini avtomatik to'ldiramiz.
@@ -53,7 +56,8 @@ function PaymentForm({ onSuccess, tickets, payments }: { onSuccess: () => void; 
     [bilet, payments]
   );
   const qolgan = matchedTicket ? matchedTicket.sotishNarxi - tolangan : null;
-  const enteredSumma = Number(form.summa) || 0;
+  const partsTotal = (Number(qism.naqd) || 0) + (Number(qism.plastik) || 0) + (Number(qism.perechisleniya) || 0);
+  const enteredSumma = aralash ? partsTotal : (Number(form.summa) || 0);
   const overpay = qolgan !== null && enteredSumma > qolgan;
 
   // Bilet raqami o'zgarganda: mos bilet bo'lsa va mijoz ismi bo'sh bo'lsa — avtomatik to'ldirish
@@ -62,24 +66,38 @@ function PaymentForm({ onSuccess, tickets, payments }: { onSuccess: () => void; 
     setForm((f) => ({ ...f, biletRaqam: val, mijozIsmi: !f.mijozIsmi && t ? t.yolovchi : f.mijozIsmi }));
   };
 
-  const submitPayment = (allowOverpay: boolean) =>
-    fetch('/api/avia/payments', {
+  const submitPayment = (allowOverpay: boolean) => {
+    const mijozIsmi = form.mijozIsmi || (form.valyuta === 'usd' && !form.biletRaqam ? 'Obmen' : form.mijozIsmi);
+    const body = aralash
+      ? {
+          biletRaqam: form.biletRaqam, mijozIsmi, izoh: form.izoh, allowOverpay,
+          qismlar: (['naqd', 'plastik', 'perechisleniya'] as PaymentType[])
+            .map((k) => ({ tolovTuri: k, summa: Number(qism[k]) || 0 }))
+            .filter((q) => q.summa > 0),
+        }
+      : {
+          ...form, mijozIsmi,
+          summAsl: form.valyuta === 'usd' ? Number(form.summAsl) : undefined,
+          kurs: form.valyuta === 'usd' ? Number(form.kurs) : undefined,
+          summa: Number(form.summa), allowOverpay,
+        };
+    return fetch('/api/avia/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        mijozIsmi: form.mijozIsmi || (form.valyuta === 'usd' && !form.biletRaqam ? 'Obmen' : form.mijozIsmi),
-        summAsl: form.valyuta === 'usd' ? Number(form.summAsl) : undefined,
-        kurs: form.valyuta === 'usd' ? Number(form.kurs) : undefined,
-        summa: Number(form.summa),
-        allowOverpay,
-      }),
+      body: JSON.stringify(body),
     });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+
+    if (aralash && partsTotal <= 0) {
+      setMessage("Kamida bitta usul bo'yicha summa kiriting");
+      setLoading(false);
+      return;
+    }
 
     try {
       let res = await submitPayment(false);
@@ -99,6 +117,8 @@ function PaymentForm({ onSuccess, tickets, payments }: { onSuccess: () => void; 
       if (res.ok) {
         setMessage("To'lov saqlandi!");
         setForm({ biletRaqam: '', mijozIsmi: '', valyuta: 'uzs', summAsl: '', kurs: '', summa: '', tolovTuri: 'naqd', izoh: '' });
+        setQism({ naqd: '', plastik: '', perechisleniya: '' });
+        setAralash(false);
         onSuccess();
       } else {
         const d = await res.json().catch(() => ({}));
@@ -157,20 +177,33 @@ function PaymentForm({ onSuccess, tickets, payments }: { onSuccess: () => void; 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div>
           <label style={labelStyle}>Valyuta</label>
-          <select value={form.valyuta} onChange={(e) => setForm({ ...form, valyuta: e.target.value as Valyuta })} style={inputStyle}>
+          <select value={form.valyuta} onChange={(e) => { const v = e.target.value as Valyuta; setForm({ ...form, valyuta: v }); if (v === 'usd') setAralash(false); }} style={inputStyle}>
             <option value="uzs">UZS</option>
             <option value="usd">USD</option>
           </select>
         </div>
         <div>
           <label style={labelStyle}>To&apos;lov turi</label>
-          <select value={form.tolovTuri} onChange={(e) => setForm({ ...form, tolovTuri: e.target.value as PaymentType })} style={inputStyle}>
-            <option value="naqd">Naqd</option>
-            <option value="plastik">Plastik</option>
-            <option value="perechisleniya">Perechisleniya</option>
-          </select>
+          {aralash ? (
+            <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: T.mut }}>Aralash</div>
+          ) : (
+            <select value={form.tolovTuri} onChange={(e) => setForm({ ...form, tolovTuri: e.target.value as PaymentType })} style={inputStyle}>
+              <option value="naqd">Naqd</option>
+              <option value="plastik">Plastik</option>
+              <option value="perechisleniya">Perechisleniya</option>
+            </select>
+          )}
         </div>
       </div>
+
+      {/* Aralash to'lov — bir bilet uchun bir nechta usul (faqat UZS) */}
+      {form.valyuta === 'uzs' && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer', color: T.mut, fontSize: 12.5 }}>
+          <input type="checkbox" checked={aralash} onChange={(e) => setAralash(e.target.checked)} />
+          Aralash to&apos;lov — bir bilet uchun naqd + plastik + perechisleniya
+        </label>
+      )}
+
       {form.valyuta === 'usd' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
           <div>
@@ -191,10 +224,26 @@ function PaymentForm({ onSuccess, tickets, payments }: { onSuccess: () => void; 
           </div>
         </div>
       )}
-      <div style={{ marginBottom: 14 }}>
-        <label style={labelStyle}>Summa (UZS)</label>
-        <input type="number" value={form.summa} onChange={(e) => setForm({ ...form, summa: e.target.value })} placeholder="0" required style={inputStyle} />
-      </div>
+      {aralash ? (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {(['naqd', 'plastik', 'perechisleniya'] as PaymentType[]).map((k) => (
+              <div key={k}>
+                <label style={labelStyle}>{k === 'naqd' ? 'Naqd' : k === 'plastik' ? 'Plastik' : 'Perechisl.'}</label>
+                <input type="number" inputMode="numeric" value={qism[k]} onChange={(e) => setQism({ ...qism, [k]: e.target.value })} placeholder="0" style={inputStyle} />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 8, textAlign: 'right', color: T.text, fontSize: 13 }}>
+            Jami: <b>{formatMoney(partsTotal)}</b>
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Summa (UZS)</label>
+          <input type="number" value={form.summa} onChange={(e) => setForm({ ...form, summa: e.target.value })} placeholder="0" required style={inputStyle} />
+        </div>
+      )}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Izoh</label>
         <input type="text" value={form.izoh} onChange={(e) => setForm({ ...form, izoh: e.target.value })} placeholder="Qo'shimcha ma'lumot" style={inputStyle} />

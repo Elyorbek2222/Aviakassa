@@ -15,6 +15,9 @@ export default function TicketsPage() {
     fetcher,
     { refreshInterval: 15000 }
   );
+  // Tozalash — faqat admin (server ham admin-only, tugmani boshqalarga ko'rsatmaymiz)
+  const { data: authData } = useSWR('/api/avia/auth', fetcher, { revalidateOnFocus: false });
+  const isAdmin = authData?.user?.role === 'admin';
 
   const tickets = data?.tickets || [];
 
@@ -41,13 +44,15 @@ export default function TicketsPage() {
           <FileText size={24} style={{ color: '#7CFF4F' }} />
           Biletlar
         </h1>
-        <button onClick={handleClear} style={{
-          display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8,
-          border: '1px solid rgba(255,59,48,0.3)', backgroundColor: 'rgba(255,59,48,0.1)',
-          color: '#FF3B30', fontSize: 13, cursor: 'pointer',
-        }}>
-          <Trash2 size={14} /> Tozalash
-        </button>
+        {isAdmin && (
+          <button onClick={handleClear} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8,
+            border: '1px solid rgba(255,59,48,0.3)', backgroundColor: 'rgba(255,59,48,0.1)',
+            color: '#FF3B30', fontSize: 13, cursor: 'pointer',
+          }}>
+            <Trash2 size={14} /> Tozalash
+          </button>
+        )}
       </div>
 
       {/* Search */}

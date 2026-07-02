@@ -1,7 +1,7 @@
 // Cookie-based auth with 4 roles
 // NOTE: Does NOT import cookies() from next/headers to avoid edge middleware issues
 
-export type UserRole = 'admin' | 'kassir' | 'begzod' | 'buxgalter';
+export type UserRole = 'admin' | 'kassir' | 'begzod' | 'buxgalter' | 'sardor';
 
 export interface AuthUser {
   username: string;
@@ -12,10 +12,11 @@ export interface AuthUser {
 export const SESSION_COOKIE_NAME = 'avia-session';
 
 export const ROLE_PAGES: Record<UserRole, string[]> = {
-  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/upload', '/otchot', '/prixot', '/settings', '/audit', '/qollanma', '/kassir', '/begzod', '/begzod/royxat', '/begzod/debts', '/buxgalter'],
+  admin: ['/', '/tickets', '/payments', '/debts', '/inkassatsiya', '/upload', '/otchot', '/prixot', '/turizm', '/settings', '/audit', '/qollanma', '/kassir', '/begzod', '/begzod/royxat', '/begzod/debts', '/buxgalter'],
   begzod: ['/begzod', '/begzod/royxat', '/begzod/debts', '/otchot', '/qollanma'],
-  kassir: ['/kassir', '/otchot', '/qollanma'],
+  kassir: ['/kassir', '/tickets', '/debts', '/otchot', '/qollanma'],
   buxgalter: ['/buxgalter', '/otchot', '/qollanma'],
+  sardor: ['/turizm', '/qollanma'],
 };
 
 export const ROLE_HOME: Record<UserRole, string> = {
@@ -23,6 +24,7 @@ export const ROLE_HOME: Record<UserRole, string> = {
   begzod: '/begzod',
   kassir: '/kassir',
   buxgalter: '/buxgalter',
+  sardor: '/turizm',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -30,6 +32,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   kassir: 'Finansist',
   begzod: 'Aviakassir',
   buxgalter: 'Buxgalter',
+  sardor: 'Turizm',
 };
 
 // ===== Authentication =====
@@ -58,6 +61,12 @@ const USERS: { username: string; password: string; role: UserRole; name: string 
     password: process.env.BUXGALTER_PASSWORD ?? '',
     role: 'buxgalter',
     name: 'Buxgalter',
+  },
+  {
+    username: process.env.SARDOR_USERNAME ?? '',
+    password: process.env.SARDOR_PASSWORD ?? '',
+    role: 'sardor',
+    name: 'Sardor',
   },
 ].filter((u) => u.username && u.password) as { username: string; password: string; role: UserRole; name: string }[];
 

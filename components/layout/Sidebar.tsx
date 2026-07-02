@@ -18,6 +18,7 @@ import {
   History,
   ListChecks,
   Coins,
+  Globe,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -58,6 +59,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: 'Turizm',
+    items: [
+      { href: '/turizm', label: 'Turizm (SEM Travel)', icon: <Globe size={18} /> },
+    ],
+  },
+  {
     title: 'Hisobot',
     items: [
       { href: '/tickets', label: 'Biletlar', icon: <FileText size={18} /> },
@@ -81,6 +88,7 @@ const ROLE_ACCENT: Record<UserRole, string> = {
   kassir: '#2CA5E0',
   begzod: '#F5A623',
   buxgalter: '#9B59B6',
+  sardor: '#22C7A9',
 };
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -88,6 +96,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   kassir: 'Finansist',
   begzod: 'Aviakassir',
   buxgalter: 'Buxgalter',
+  sardor: 'Turizm',
 };
 
 export default function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {

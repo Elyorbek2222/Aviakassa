@@ -11,6 +11,7 @@ import type {
   OtchotListItem,
   Obmen,
   PrixotDoc,
+  TurizmDoc,
 } from '../types/avia';
 
 // ===== Generic jsonb hujjat yordamchilari =====
@@ -179,8 +180,8 @@ export async function listOtchotlar(): Promise<OtchotListItem[]> {
   const { data, error } = await getSupabase().from('otchot').select('id, doc');
   if (error) throw error;
   return (data || [])
-    // prixot-* hujjatlar shu jadvalda saqlanadi, lekin otchot emas — chiqarib tashlaymiz
-    .filter((r: { id: string }) => !r.id.startsWith('prixot-'))
+    // prixot-* / turizm-* hujjatlar shu jadvalda saqlanadi, lekin otchot emas — chiqarib tashlaymiz
+    .filter((r: { id: string }) => !r.id.startsWith('prixot-') && !r.id.startsWith('turizm-'))
     .map((r: { id: string; doc: SverkaData }) => ({
       id: r.id,
       oy: r.doc?.meta?.oy || r.id,
@@ -224,6 +225,32 @@ export async function listPrixotOylar(): Promise<string[]> {
     .map((r: { id: string }) => r.id)
     .filter((id: string) => id.startsWith('prixot-'))
     .map((id: string) => id.slice('prixot-'.length))
+    .sort((a: string, b: string) => (a < b ? 1 : -1));
+}
+
+// ===== Turizm (SEM Travel, U-ON) — prixot bilan bir xil naqsh =====
+// Bir oy = bitta hujjat (otchot jadvalida `turizm-YYYY-MM` id bilan). Supabase =
+// hisobot nusxasi; asosiy manba U-ON.
+
+export async function getTurizmDoc(oy: string): Promise<TurizmDoc> {
+  const { data, error } = await getSupabase().from('otchot').select('doc').eq('id', `turizm-${oy}`).maybeSingle();
+  if (error) throw error;
+  return (data?.doc as TurizmDoc) || { oy, yozuvlar: [] };
+}
+
+export async function saveTurizmDoc(d: TurizmDoc): Promise<void> {
+  const { error } = await getSupabase().from('otchot').upsert({ id: `turizm-${d.oy}`, doc: d }, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+// Mavjud turizm oylari (eng yangisi birinchi)
+export async function listTurizmOylar(): Promise<string[]> {
+  const { data, error } = await getSupabase().from('otchot').select('id');
+  if (error) throw error;
+  return (data || [])
+    .map((r: { id: string }) => r.id)
+    .filter((id: string) => id.startsWith('turizm-'))
+    .map((id: string) => id.slice('turizm-'.length))
     .sort((a: string, b: string) => (a < b ? 1 : -1));
 }
 

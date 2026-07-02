@@ -56,6 +56,19 @@ const GUIDES: Record<UserRole, Guide> = {
     ],
     maqsad: 'Aviakompaniyalar oldidagi qarzni oʻz vaqtida yopish.',
   },
+  sardor: {
+    title: 'Turizm — Qoʻllanma',
+    color: '#22C7A9',
+    intro: 'Siz turizm zayavkalari boʻyicha prixod (kirim) va rasxodlarni (chiqim) kiritasiz. Yozuv bir marta shu yerda kiritiladi va avtomatik U-ON CRM zayavkasiga yoziladi — ikki joyda qoʻlda yozish shart emas.',
+    steps: [
+      { t: '1. Prixot yoki Rasxod', d: 'Yuqoridan turini tanlang: Prixot = pul kirimi, Rasxod = pul chiqimi.' },
+      { t: '2. Zayavka nomeri', d: 'U-ON CRM da oldindan yaratilgan zayavka nomerini kiriting — toʻlov aynan shu zayavkaga yoziladi. Nomer notoʻgʻri boʻlsa tizim ogohlantiradi.' },
+      { t: '3. Summa va valyuta', d: 'Toʻlov summasini kiriting, valyutani tanlang.' },
+      { t: '4. Partnyor', d: 'Rasxod (chiqim) uchun partnyorni roʻyxatdan tanlang. Roʻyxat U-ON dan olinadi.' },
+      { t: '5. Saqlash', d: '"Saqlash va U-ON’ga yuborish" tugmasini bosing. U-ON ga muvaffaqiyatli yozilsagina yozuv saqlanadi va pastdagi jadvalda koʻrinadi.' },
+    ],
+    maqsad: 'Har bir zayavka boʻyicha prixod/rasxodni oʻz vaqtida, xatosiz va bitta joyda kiritish.',
+  },
   admin: {
     title: 'Admin — Qoʻllanma',
     color: '#7CFF4F',

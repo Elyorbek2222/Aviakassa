@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
-import { getPayments, addSinglePayment, clearPayments, updatePayment, getTickets } from '@/lib/avia-storage';
+import { getPayments, addSinglePayment, addPayments, clearPayments, updatePayment, getTickets } from '@/lib/avia-storage';
 import { appendToSheet } from '@/lib/gsheet';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { validatePayment } from '@/lib/validate';
 import { logChange } from '@/lib/audit';
-import type { AviaPayment } from '@/types/avia';
+import type { AviaPayment, PaymentType } from '@/types/avia';
 
 // GET: return payments with optional filters
 export async function GET(request: NextRequest) {
@@ -55,6 +55,58 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const today = todayStr();
+
+    // Aralash to'lov: bitta bilet uchun bir nechta usul (naqd+plastik+perechisleniya).
+    // Har usul alohida AviaPayment yozuvi bo'lib saqlanadi — hisobot allaqachon
+    // tolovTuri bo'yicha yig'gani uchun KPI/qarz/naqd-sverka avtomatik to'g'ri chiqadi.
+    if (Array.isArray(body.qismlar)) {
+      const PARTS: PaymentType[] = ['naqd', 'plastik', 'perechisleniya'];
+      const parts = (body.qismlar as Array<{ tolovTuri?: unknown; summa?: unknown }>)
+        .map((q) => ({ tolovTuri: String(q?.tolovTuri) as PaymentType, summa: Math.round(Number(q?.summa) || 0) }))
+        .filter((q) => q.summa > 0);
+      if (!parts.length) return NextResponse.json({ error: "Kamida bitta to'lov summasi kerak" }, { status: 400 });
+      if (parts.some((q) => !PARTS.includes(q.tolovTuri) || q.summa < 0)) {
+        return NextResponse.json({ error: "To'lov turi yoki summa noto'g'ri" }, { status: 400 });
+      }
+      const total = parts.reduce((s, q) => s + q.summa, 0);
+      const biletRaqam = body.biletRaqam ? String(body.biletRaqam).trim() : '';
+      const mijozIsmi = body.mijozIsmi ? String(body.mijozIsmi) : '';
+
+      // Ortiqcha to'lov himoyasi — jami summa bo'yicha (bitta tekshiruv)
+      if (biletRaqam && !body.allowOverpay) {
+        const tickets = await getTickets();
+        const ticket = tickets.find((t) => t.biletRaqam === biletRaqam);
+        if (ticket) {
+          const existing = await getPayments();
+          const tolangan = existing.filter((p) => p.biletRaqam === biletRaqam).reduce((s, p) => s + p.summa, 0);
+          const qolgan = ticket.sotishNarxi - tolangan;
+          if (total > qolgan) {
+            return NextResponse.json(
+              { error: `To'lov qolgan qarzdan oshib ketdi. Qolgan qarz: ${qolgan.toLocaleString('ru-RU')} so'm`, overpay: true, qolgan },
+              { status: 409 },
+            );
+          }
+        }
+      }
+
+      const stamp = Date.now();
+      const created: AviaPayment[] = parts.map((q, i) => ({
+        id: `PAY-${stamp}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+        sana: today,
+        biletRaqam,
+        mijozIsmi,
+        valyuta: 'uzs',
+        summa: q.summa,
+        tolovTuri: q.tolovTuri,
+        izoh: body.izoh || '',
+      }));
+      await addPayments(created);
+      for (const p of created) {
+        logChange(user, 'create', 'payment', p.id, `To'lov (aralash): ${p.mijozIsmi || p.biletRaqam || '—'} — ${p.summa.toLocaleString('ru-RU')} so'm (${p.tolovTuri})`, { after: p }).catch(() => {});
+        appendToSheet('Tolovlar', [today, p.mijozIsmi, p.summa, p.tolovTuri, p.biletRaqam, 'UZS', '', '', p.izoh || '']).catch(() => {});
+      }
+      return NextResponse.json({ payments: created, total: created.length });
+    }
 
     // Validatsiya — summa/kurs xato bo'lsa jimgina 0 ga aylanmasin
     const valid = validatePayment(body);

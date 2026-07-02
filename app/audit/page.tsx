@@ -18,6 +18,7 @@ const ENTITY_LABELS: Record<AuditEntity, string> = {
   settings: 'Sozlamalar',
   otchot: 'Otchot',
   prixot: 'Prixot',
+  turizm: 'Turizm',
 };
 
 const ACTION_LABELS: Record<AuditAction, string> = {

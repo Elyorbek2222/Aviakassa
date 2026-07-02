@@ -250,6 +250,42 @@ export interface PrixotDoc {
   yozuvlar: PrixotYozuv[];
 }
 
+// ===== Turizm (SEM Travel) — U-ON CRM bilan sinxron =====
+// Sardor prixot/rasxodni BIR MARTA shu yerda kiritadi. Yozuv avval U-ON'ga
+// (payment/create) yuboriladi, muvaffaqiyatli bo'lsagina Supabase'ga (hisobot
+// nusxasi sifatida) saqlanadi. U-ON = asosiy manba (strict rejim).
+
+export type TurizmTur = 'prixot' | 'rasxod'; // U-ON cio_id: prixot=1, rasxod=2
+
+export const TURIZM_TUR_LABEL: Record<TurizmTur, string> = {
+  prixot: 'Prixot (kirim)',
+  rasxod: 'Rasxod (chiqim)',
+};
+
+export interface TurizmYozuv {
+  id: string; // bizning ID (TUR-...)
+  sana: string; // YYYY-MM-DD — to'lov sanasi
+  zayavka: string; // Sardor kiritgan U-ON zayavka nomeri (inson-o'qiydigan)
+  rId: number; // U-ON ichki request ID (zayavka nomeridan aniqlanadi)
+  tur: TurizmTur; // prixot | rasxod
+  summa: number; // tanlangan valyutadagi summa
+  valyuta?: string; // ko'rsatish uchun valyuta belgisi (masalan 'UZS')
+  currencyId?: number; // U-ON currency id
+  partnerId?: number; // U-ON supplier_id (asosan rasxod uchun)
+  partnerNomi?: string; // ko'rsatish uchun partner nomi
+  cashId?: number; // U-ON kassa id
+  formId?: number; // U-ON to'lov shakli id
+  izoh?: string; // to'lov asosi / izoh
+  uonPaymentId?: string; // U-ON'da yaratilgan platyoj id (javobdan)
+  yaratdi: string; // kim kiritdi (actor nomi)
+}
+
+// Bir oylik turizm hujjati (otchot jadvalida `turizm-YYYY-MM` id bilan saqlanadi)
+export interface TurizmDoc {
+  oy: string; // YYYY-MM
+  yozuvlar: TurizmYozuv[];
+}
+
 // ===== Audit log (kim / nima / qachon) =====
 
 export type AuditAction = 'create' | 'update' | 'delete' | 'clear';
@@ -264,7 +300,8 @@ export type AuditEntity =
   | 'inkassatsiya'
   | 'settings'
   | 'otchot'
-  | 'prixot';
+  | 'prixot'
+  | 'turizm';
 
 export interface AuditEntry {
   id: string;
