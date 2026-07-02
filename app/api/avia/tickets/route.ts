@@ -76,15 +76,15 @@ export async function POST(request: NextRequest) {
 
     const existing = await getTickets();
 
-    // Dublikat: bir xil bilet raqami + yo'lovchi. allowDuplicate bilan majburan
-    // qo'shsa bo'ladi (qayta rasmlashtirish holati uchun).
+    // Dublikat: bir xil bilet RAQAMI bo'yicha (bilet raqami yagona bo'lishi kerak).
+    // Yo'lovchi ismi imlosi/probel/registri farq qilsa ham aynan shu bilet ikki
+    // marta kirmasin. allowDuplicate bilan majburan qo'shsa bo'ladi (reissue uchun).
     if (!body.allowDuplicate) {
-      const dup = existing.some(
-        (t) => t.biletRaqam === biletRaqam && t.yolovchi.trim().toLowerCase() === yolovchi.toLowerCase()
-      );
-      if (dup) {
+      const norm = (s: string) => s.trim().toLowerCase();
+      const dupTicket = existing.find((t) => norm(t.biletRaqam) === norm(biletRaqam));
+      if (dupTicket) {
         return NextResponse.json(
-          { error: "Bu bilet raqami va yo'lovchi allaqachon kiritilgan", duplicate: true },
+          { error: `Bu bilet raqami allaqachon kiritilgan: ${biletRaqam} (${dupTicket.yolovchi})`, duplicate: true },
           { status: 409 }
         );
       }
