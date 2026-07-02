@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { ListChecks, CheckCircle2, AlertTriangle, X, Plane, Wallet } from 'lucide-react';
+import { ListChecks, CheckCircle2, AlertTriangle, X, Plane, Wallet, Pencil } from 'lucide-react';
 import { formatMoney, todayStr } from '@/lib/utils';
 import type { AviaTicket } from '@/types/avia';
+import EditTicketModal from '@/components/avia/EditTicketModal';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -20,13 +21,18 @@ export default function BegzodRoyxatPage() {
   const { data: authData } = useSWR('/api/avia/auth', fetcher);
   const agentName = authData?.user?.name || 'Kassir-Agent';
   const agentEnc = encodeURIComponent(agentName);
+  // Admin — nazoratchi: hamma agentlarning biletlarini ko'radi va tahrirlaydi.
+  // Aviakassir — faqat o'z biletlari (agent bo'yicha filtr).
+  const isAdmin = authData?.user?.role === 'admin';
 
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(todayStr());
+  const [editing, setEditing] = useState<AviaTicket | null>(null);
 
-  const dateQs = `${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`;
-  const { data: ticketsData } = useSWR(`/api/avia/tickets?agent=${agentEnc}${dateQs}`, fetcher, { refreshInterval: 60000 });
-  const { data: reportsData } = useSWR(`/api/avia/reports?agent=${agentEnc}${dateQs}`, fetcher, { refreshInterval: 60000 });
+  const qs = [isAdmin ? '' : `agent=${agentEnc}`, from ? `from=${from}` : '', to ? `to=${to}` : ''].filter(Boolean).join('&');
+  const suffix = qs ? `?${qs}` : '';
+  const { data: ticketsData, mutate: mutateTickets } = useSWR(`/api/avia/tickets${suffix}`, fetcher, { refreshInterval: 60000 });
+  const { data: reportsData, mutate: mutateReports } = useSWR(`/api/avia/reports${suffix}`, fetcher, { refreshInterval: 60000 });
 
   const tickets: AviaTicket[] = ticketsData?.tickets || [];
   const debts: DebtRow[] = reportsData?.debts || [];
@@ -115,6 +121,7 @@ export default function BegzodRoyxatPage() {
                   <th style={{ ...th, textAlign: 'right' }}>To&apos;langan</th>
                   <th style={{ ...th, textAlign: 'right' }}>Qarz</th>
                   <th style={{ ...th, textAlign: 'right' }}>Holat</th>
+                  {isAdmin && <th style={{ ...th, textAlign: 'right' }}>Amal</th>}
                 </tr>
               </thead>
               <tbody>
@@ -146,6 +153,14 @@ export default function BegzodRoyxatPage() {
                           </span>
                         )}
                       </td>
+                      {isAdmin && (
+                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <button onClick={() => setEditing(t)} title="Biletni tahrirlash"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 6, border: '1px solid #F5A62340', backgroundColor: '#F5A62314', color: '#F5A623', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                            <Pencil size={12} /> Tahrirlash
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -158,6 +173,14 @@ export default function BegzodRoyxatPage() {
         </div>
       </div>
       </>
+      )}
+
+      {editing && (
+        <EditTicketModal
+          ticket={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { mutateTickets(); mutateReports(); }}
+        />
       )}
     </div>
   );
