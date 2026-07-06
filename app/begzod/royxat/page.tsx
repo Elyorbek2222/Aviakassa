@@ -6,6 +6,7 @@ import { ListChecks, CheckCircle2, AlertTriangle, X, Plane, Wallet, Pencil, Chev
 import { formatMoney, todayStr } from '@/lib/utils';
 import type { AviaTicket, AviaPayment } from '@/types/avia';
 import EditTicketModal from '@/components/avia/EditTicketModal';
+import AviaPaymentsTable from '@/components/avia/AviaPaymentsTable';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -35,6 +36,7 @@ export default function BegzodRoyxatPage() {
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(todayStr());
   const [editing, setEditing] = useState<AviaTicket | null>(null);
+  const [view, setView] = useState<'biletlar' | 'prixodlar'>('biletlar');
 
   const qs = [isAdmin ? '' : `agent=${agentEnc}`, from ? `from=${from}` : '', to ? `to=${to}` : ''].filter(Boolean).join('&');
   const suffix = qs ? `?${qs}` : '';
@@ -80,6 +82,13 @@ export default function BegzodRoyxatPage() {
   const qarzli = debts.length;
   const yopilgan = Math.max(0, tickets.length - qarzli);
 
+  // Prixodlar (kirgan pullar) — tanlangan sana oralig'idagi barcha to'lovlar
+  const prixodlar = payments
+    .filter((p) => (!from || p.sana >= from) && (!to || p.sana <= to))
+    .slice()
+    .sort((a, b) => (a.sana < b.sana ? 1 : -1));
+  const jamiPrixod = prixodlar.reduce((s, p) => s + p.summa, 0);
+
   const inputStyle = {
     padding: '9px 12px', borderRadius: 8, border: '1px solid #1E2E24',
     backgroundColor: '#0A0F0D', color: '#fff', fontSize: 14, outline: 'none',
@@ -99,6 +108,12 @@ export default function BegzodRoyxatPage() {
       </div>
     </div>
   );
+
+  const segBtn = (active: boolean, color: string): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 10, fontSize: 13.5,
+    cursor: 'pointer', fontWeight: active ? 700 : 500,
+    border: `1px solid ${active ? color : '#1E2E24'}`, backgroundColor: active ? color + '18' : '#141F19', color: active ? color : '#8A9A8F',
+  });
 
   return (
     <div>
@@ -122,7 +137,33 @@ export default function BegzodRoyxatPage() {
         <button type="button" onClick={setAll} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Hammasi</button>
       </div>
 
-      {loading ? (
+      {/* Ko'rinish: Biletlar | Prixodlar (kirgan pullar) */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => setView('biletlar')} style={segBtn(view === 'biletlar', '#F5A623')}>
+          <ListChecks size={15} /> Biletlar
+        </button>
+        <button type="button" onClick={() => setView('prixodlar')} style={segBtn(view === 'prixodlar', '#2CA5E0')}>
+          <Wallet size={15} /> Prixodlar
+        </button>
+      </div>
+
+      {view === 'prixodlar' ? (
+        !paymentsData ? (
+          <div style={{ color: '#8A9A8F', textAlign: 'center', padding: 60, backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12 }}>Yuklanmoqda...</div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 18 }}>
+              {kpiCard('Kirgan pullar (prixod)', formatMoney(jamiPrixod), '#2CA5E0', Wallet)}
+              {kpiCard("To'lovlar soni", String(prixodlar.length), '#8A9A8F', ListChecks)}
+            </div>
+            {prixodlar.length === 0 ? (
+              <div style={{ color: '#4A5C50', textAlign: 'center', padding: 40, fontSize: 14, backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12 }}>Bu oraliqda kirgan pul yo&apos;q</div>
+            ) : (
+              <AviaPaymentsTable payments={prixodlar} />
+            )}
+          </>
+        )
+      ) : loading ? (
         <div style={{ color: '#8A9A8F', textAlign: 'center', padding: 60, backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12 }}>Yuklanmoqda...</div>
       ) : (
       <>
