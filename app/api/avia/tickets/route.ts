@@ -79,7 +79,9 @@ export async function POST(request: NextRequest) {
     // Dublikat: bir xil bilet RAQAMI bo'yicha (bilet raqami yagona bo'lishi kerak).
     // Yo'lovchi ismi imlosi/probel/registri farq qilsa ham aynan shu bilet ikki
     // marta kirmasin. allowDuplicate bilan majburan qo'shsa bo'ladi (reissue uchun).
-    if (!body.allowDuplicate) {
+    // Blok faqat PULLIK biletga (sotishNarxi > 0) — ikki marta daromad yozilmasin.
+    // 0 summali bilet (reissue / bepul / mil) bir xil raqam bilan bemalol qo'shiladi.
+    if (!body.allowDuplicate && sotishNarxi > 0) {
       const norm = (s: string) => s.trim().toLowerCase();
       const dupTicket = existing.find((t) => norm(t.biletRaqam) === norm(biletRaqam));
       if (dupTicket) {

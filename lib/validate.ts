@@ -66,8 +66,10 @@ export function validateTicket(body: Record<string, unknown>): Result<TicketInpu
   const tarif = toNumber(body.tarif);
   if (tarif === null || tarif < 0) return err("Tarif noto'g'ri (manfiy yoki bo'sh)");
 
+  // Sotish narxi 0 bo'lishi mumkin (bepul / reissue / mil bilet). Bo'sh yoki xato
+  // qiymat (null) hamon rad etiladi — summa jimgina 0 ga aylanib qolmasin.
   const sotishNarxi = toNumber(body.sotishNarxi);
-  if (sotishNarxi === null || sotishNarxi <= 0) return err("Sotish narxi 0 dan katta bo'lishi kerak");
+  if (sotishNarxi === null || sotishNarxi < 0) return err("Sotish narxi manfiy bo'lishi mumkin emas");
 
   const rawCount = body.passengerCount;
   const passengerCount = rawCount === undefined || rawCount === null || rawCount === '' ? 1 : toNumber(rawCount);
