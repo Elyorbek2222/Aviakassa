@@ -2,7 +2,7 @@
 
 import { useState, Fragment } from 'react';
 import useSWR from 'swr';
-import { ListChecks, CheckCircle2, AlertTriangle, X, Plane, Wallet, Pencil, ChevronDown, ChevronRight } from 'lucide-react';
+import { ListChecks, CheckCircle2, AlertTriangle, X, Plane, Wallet, Pencil, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { formatMoney, todayStr } from '@/lib/utils';
 import type { AviaTicket, AviaPayment } from '@/types/avia';
 import EditTicketModal from '@/components/avia/EditTicketModal';
@@ -37,6 +37,8 @@ export default function BegzodRoyxatPage() {
   const [to, setTo] = useState(todayStr());
   const [editing, setEditing] = useState<AviaTicket | null>(null);
   const [view, setView] = useState<'biletlar' | 'prixodlar'>('biletlar');
+  const [search, setSearch] = useState('');
+  const q = search.trim().toLowerCase();
 
   const qs = [isAdmin ? '' : `agent=${agentEnc}`, from ? `from=${from}` : '', to ? `to=${to}` : ''].filter(Boolean).join('&');
   const suffix = qs ? `?${qs}` : '';
@@ -74,8 +76,10 @@ export default function BegzodRoyxatPage() {
   // Ikkala manba (biletlar + qarz/holat) yuklanmaguncha status chaqnamasin
   const loading = !ticketsData || !reportsData;
 
-  // Eng yangisi tepada
-  const rows = tickets.slice().sort((a, b) => (a.sana < b.sana ? 1 : a.sana > b.sana ? -1 : 0));
+  // Eng yangisi tepada + bilet raqami / yo'lovchi bo'yicha qidiruv
+  const rows = tickets
+    .filter((t) => !q || `${t.biletRaqam} ${t.yolovchi}`.toLowerCase().includes(q))
+    .sort((a, b) => (a.sana < b.sana ? 1 : a.sana > b.sana ? -1 : 0));
 
   const jamiSotuv = tickets.reduce((s, t) => s + t.sotishNarxi, 0);
   const jamiQarz = debts.reduce((s, d) => s + d.qarz, 0);
@@ -85,6 +89,7 @@ export default function BegzodRoyxatPage() {
   // Prixodlar (kirgan pullar) — tanlangan sana oralig'idagi barcha to'lovlar
   const prixodlar = payments
     .filter((p) => (!from || p.sana >= from) && (!to || p.sana <= to))
+    .filter((p) => !q || `${p.biletRaqam} ${p.mijozIsmi}`.toLowerCase().includes(q))
     .slice()
     .sort((a, b) => (a.sana < b.sana ? 1 : -1));
   const jamiPrixod = prixodlar.reduce((s, p) => s + p.summa, 0);
@@ -135,6 +140,23 @@ export default function BegzodRoyxatPage() {
         </div>
         <button type="button" onClick={setThisMonth} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #F5A62340', backgroundColor: '#F5A62314', color: '#F5A623', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Bu oy</button>
         <button type="button" onClick={setAll} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Hammasi</button>
+      </div>
+
+      {/* Bilet raqami / yo'lovchi bo'yicha qidirish */}
+      <div style={{ position: 'relative', marginBottom: 18, maxWidth: 380 }}>
+        <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#4A5C50' }} />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Bilet raqami yoki yo'lovchi bo'yicha qidirish…"
+          style={{ width: '100%', padding: '10px 36px 10px 36px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: '#0A0F0D', color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+        />
+        {search && (
+          <button type="button" onClick={() => setSearch('')} aria-label="Tozalash" style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', color: '#8A9A8F', cursor: 'pointer', display: 'flex', padding: 4 }}>
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {/* Ko'rinish: Biletlar | Prixodlar (kirgan pullar) */}
