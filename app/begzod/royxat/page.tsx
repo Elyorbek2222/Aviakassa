@@ -86,8 +86,11 @@ export default function BegzodRoyxatPage() {
   const qarzli = debts.length;
   const yopilgan = Math.max(0, tickets.length - qarzli);
 
-  // Prixodlar (kirgan pullar) — tanlangan sana oralig'idagi barcha to'lovlar
+  // Prixodlar — faqat BILET uchun (bilet raqami orqali) kirgan pul. Obmen, valyuta
+  // (USD) oldi-berdi, ismli kirimlar bilet raqamisiz bo'lgani uchun bu yerga kirmaydi
+  // — ular kassirning ishi, Begzod hisobotiga aloqasi yo'q.
   const prixodlar = payments
+    .filter((p) => p.biletRaqam)
     .filter((p) => (!from || p.sana >= from) && (!to || p.sana <= to))
     .filter((p) => !q || `${p.biletRaqam} ${p.mijozIsmi}`.toLowerCase().includes(q))
     .slice()
@@ -175,11 +178,11 @@ export default function BegzodRoyxatPage() {
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 18 }}>
-              {kpiCard('Kirgan pullar (prixod)', formatMoney(jamiPrixod), '#2CA5E0', Wallet)}
+              {kpiCard('Bilet uchun kirgan pul', formatMoney(jamiPrixod), '#2CA5E0', Wallet)}
               {kpiCard("To'lovlar soni", String(prixodlar.length), '#8A9A8F', ListChecks)}
             </div>
             {prixodlar.length === 0 ? (
-              <div style={{ color: '#4A5C50', textAlign: 'center', padding: 40, fontSize: 14, backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12 }}>Bu oraliqda kirgan pul yo&apos;q</div>
+              <div style={{ color: '#4A5C50', textAlign: 'center', padding: 40, fontSize: 14, backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12 }}>Bu oraliqda bilet uchun kirgan pul yo&apos;q</div>
             ) : (
               <AviaPaymentsTable payments={prixodlar} />
             )}
