@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
-import { getObmenlar, addObmen, updateObmen } from '@/lib/avia-storage';
+import { getObmenlar, addObmen, updateObmen, getPayments } from '@/lib/avia-storage';
 import { requireAuth } from '@/lib/api-auth';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { logChange } from '@/lib/audit';
@@ -30,9 +30,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const usdSumma = Number(body.usdSumma) || 0;
     const kurs = Number(body.kurs) || 0;
-    const uzsSumma = body.uzsSumma !== undefined ? Number(body.uzsSumma) : Math.round(usdSumma * kurs);
     if (usdSumma <= 0 || kurs <= 0) {
       return NextResponse.json({ error: 'USD summa va kurs kerak' }, { status: 400 });
+    }
+    // UZS ni doim server hisoblaydi (usd × kurs) — clientga ishonmaymiz, drift bo'lmasin.
+    const uzsSumma = Math.round(usdSumma * kurs);
+
+    // Yetarli USD tekshiruvi: kassada yig'ilgan USD dan ortiq obmen qilib bo'lmaydi.
+    // Mavjud USD = USD to'lovlar (summAsl) − oldingi obmenlar (usdSumma).
+    if (!body.allowNegative) {
+      const [payments, obmenlar] = await Promise.all([getPayments(), getObmenlar()]);
+      const usdKirim = payments.reduce((s, p) => s + (p.valyuta === 'usd' ? (p.summAsl || 0) : 0), 0);
+      const usdChiqim = obmenlar.reduce((s, o) => s + o.usdSumma, 0);
+      const mavjud = usdKirim - usdChiqim;
+      if (usdSumma > mavjud) {
+        return NextResponse.json(
+          { error: `Kassada yetarli USD yo'q. Mavjud: $${mavjud.toLocaleString('en-US')}`, insufficient: true, mavjud },
+          { status: 409 },
+        );
+      }
     }
 
     const item: Obmen = {
@@ -76,7 +92,7 @@ export async function PATCH(request: NextRequest) {
     const updated: Obmen = {
       ...existing, // id, sana o'zgarmaydi
       usdSumma, kurs,
-      uzsSumma: body.uzsSumma !== undefined ? Number(body.uzsSumma) : Math.round(usdSumma * kurs),
+      uzsSumma: Math.round(usdSumma * kurs), // doim usd × kurs
       izoh: body.izoh ?? existing.izoh,
     };
     await updateObmen(updated);

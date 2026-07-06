@@ -343,15 +343,26 @@ function ObmenForm({ onSuccess, usdMavjud }: { onSuccess: () => void; usdMavjud:
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const uzs = usd && kurs ? Math.round(Number(usd) * Number(kurs)) : 0;
+  const yetarsiz = Number(usd) > 0 && Number(usd) > usdMavjud;
+
+  const submitObmen = (allowNegative: boolean) =>
+    fetch('/api/avia/obmen', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usdSumma: Number(usd), kurs: Number(kurs), izoh: izoh || undefined, allowNegative }),
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setMessage('');
     try {
-      const res = await fetch('/api/avia/obmen', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usdSumma: Number(usd), kurs: Number(kurs), uzsSumma: uzs, izoh: izoh || undefined }),
-      });
+      let res = await submitObmen(false);
+      // 409 = kassada yetarli USD yo'q: tasdiq so'rab, baribir o'tkazish
+      if (res.status === 409) {
+        const d = await res.json().catch(() => ({}));
+        if (d.insufficient && confirm(`${d.error}. Baribir obmen qilinsinmi?`)) {
+          res = await submitObmen(true);
+        } else { setMessage(d.error || "Yetarli USD yo'q"); setLoading(false); return; }
+      }
       if (res.ok) { setMessage('Obmen saqlandi!'); setUsd(''); setKurs(''); setIzoh(''); onSuccess(); }
       else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik yuz berdi'); }
     } catch { setMessage("Serverga ulanib bo'lmadi"); }
@@ -381,6 +392,11 @@ function ObmenForm({ onSuccess, usdMavjud }: { onSuccess: () => void; usdMavjud:
         <label style={labelStyle}>Izoh</label>
         <input type="text" value={izoh} onChange={(e) => setIzoh(e.target.value)} placeholder="Qayerda obmen qilindi?" style={inputStyle} />
       </div>
+      {yetarsiz && (
+        <div style={{ marginBottom: 12, padding: '9px 12px', borderRadius: 8, backgroundColor: T.orange + '12', border: `1px solid ${T.orange}40`, color: T.orange, fontSize: 12.5, fontWeight: 600 }}>
+          ⚠ Kassadagi USD (${fmtUsd(usdMavjud)}) dan ortiq obmen qilinyapti
+        </div>
+      )}
       <MessageBox message={message} />
       <button type="submit" disabled={loading} style={{
         width: '100%', padding: '12px 20px', borderRadius: 9, border: `1px solid ${T.teal}`,
