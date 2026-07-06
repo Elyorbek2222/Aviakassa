@@ -13,6 +13,7 @@ import AviaDebtTable from '@/components/avia/AviaDebtTable';
 import RasxodForm from '@/components/avia/RasxodForm';
 import RefundForm from '@/components/avia/RefundForm';
 import PeriodFilter from '@/components/avia/PeriodFilter';
+import SotuvBalansCard from '@/components/avia/SotuvBalansCard';
 import { periodQuery, periodLabel, periodRange, inPeriod } from '@/lib/period';
 import { inputStyle, labelStyle, MessageBox } from '@/components/avia/formStyles';
 
@@ -776,6 +777,9 @@ export default function FinansistPage() {
         </div>
         <PeriodFilter value={period} onChange={setPeriod} />
       </div>
+
+      {/* Opshiy balans: bilet yozildi ↔ pul kirdi ↔ qoldiq qarz (katta, qizil) */}
+      <SotuvBalansCard period={period} />
 
       {/* Asosiy ko'rinish: Kassa | Hisobotlar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
