@@ -7,6 +7,7 @@ import { formatMoney, ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { parseTicketText } from '@/lib/ticket-parse';
 import { AIRLINE_LABELS, type AirlineKey, type AviaTicket } from '@/types/avia';
 import PeriodFilter from '@/components/avia/PeriodFilter';
+import SotuvBalansCard from '@/components/avia/SotuvBalansCard';
 import { periodRange, periodLabel } from '@/lib/period';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -492,12 +493,12 @@ export default function BegzodPage() {
   const { data: ticketsData, mutate: mutateTickets } = useSWR(
     `/api/avia/tickets?agent=${agentEnc}${dateQs}`,
     fetcher,
-    { refreshInterval: 60000, revalidateOnFocus: true }
+    { refreshInterval: 60000, revalidateOnFocus: true, keepPreviousData: true }
   );
   const { data: reportsData, mutate: mutateReports } = useSWR(
     `/api/avia/reports?agent=${agentEnc}${dateQs}`,
     fetcher,
-    { refreshInterval: 60000 }
+    { refreshInterval: 60000, keepPreviousData: true }
   );
 
   const tickets: AviaTicket[] = ticketsData?.tickets || [];
@@ -539,6 +540,9 @@ export default function BegzodPage() {
         </div>
         <PeriodFilter value={period} onChange={setPeriod} />
       </div>
+
+      {/* Opshiy balans: bilet yozildi ↔ pul kirdi ↔ qoldiq qarz (katta, qizil) */}
+      <SotuvBalansCard period={period} />
 
       <div className="split-2">
         {/* Left: Form */}

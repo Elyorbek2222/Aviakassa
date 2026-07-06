@@ -23,12 +23,16 @@ export async function GET(request: NextRequest) {
     const agentFilter = searchParams.get('agent');
     const airlineFilter = searchParams.get('airline');
 
-    const settings = await getSettings();
-    let tickets = await getTickets();
-    let payments = await getPayments();
-    let inkassatsiya = await getInkassatsiya();
-    let rasxodlar = await getRasxodlar();
-    let refundlar = await getRefundlar();
+    // Barcha manbalarni PARALLEL o'qiymiz — ilgari 6 so'rov ketma-ket edi
+    // (~6× sekin). Endi eng sekin bitta so'rov vaqtiga tushadi.
+    let [settings, tickets, payments, inkassatsiya, rasxodlar, refundlar] = await Promise.all([
+      getSettings(),
+      getTickets(),
+      getPayments(),
+      getInkassatsiya(),
+      getRasxodlar(),
+      getRefundlar(),
+    ]);
 
     // Apply date filters
     if (from) {

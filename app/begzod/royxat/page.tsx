@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import useSWR from 'swr';
-import { ListChecks, CheckCircle2, AlertTriangle, X, Plane, Wallet, Pencil } from 'lucide-react';
+import { ListChecks, CheckCircle2, AlertTriangle, X, Plane, Wallet, Pencil, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatMoney, todayStr } from '@/lib/utils';
-import type { AviaTicket } from '@/types/avia';
+import type { AviaTicket, AviaPayment } from '@/types/avia';
 import EditTicketModal from '@/components/avia/EditTicketModal';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -14,6 +14,13 @@ interface DebtRow {
   qarz: number;
   tolangan: number;
 }
+
+// To'lov turi belgilari (naqd/plastik/perechisleniya) — AviaPaymentsTable bilan bir xil
+const PAY_BADGE: Record<string, { label: string; color: string }> = {
+  naqd: { label: 'Naqd', color: '#7CFF4F' },
+  plastik: { label: 'Plastik', color: '#F5A623' },
+  perechisleniya: { label: 'Perechisleniya', color: '#2CA5E0' },
+};
 
 const monthStart = () => todayStr().slice(0, 8) + '01';
 
@@ -31,13 +38,36 @@ export default function BegzodRoyxatPage() {
 
   const qs = [isAdmin ? '' : `agent=${agentEnc}`, from ? `from=${from}` : '', to ? `to=${to}` : ''].filter(Boolean).join('&');
   const suffix = qs ? `?${qs}` : '';
-  const { data: ticketsData, mutate: mutateTickets } = useSWR(`/api/avia/tickets${suffix}`, fetcher, { refreshInterval: 60000 });
-  const { data: reportsData, mutate: mutateReports } = useSWR(`/api/avia/reports${suffix}`, fetcher, { refreshInterval: 60000 });
+  const { data: ticketsData, mutate: mutateTickets } = useSWR(`/api/avia/tickets${suffix}`, fetcher, { refreshInterval: 60000, keepPreviousData: true });
+  const { data: reportsData, mutate: mutateReports } = useSWR(`/api/avia/reports${suffix}`, fetcher, { refreshInterval: 60000, keepPreviousData: true });
+  // To'lovlar (pul kirimlari) — sana bilan cheklamaymiz: bilet uchun keyin kirgan
+  // pul ham ko'rinsin. Bilet raqami bo'yicha biriktiramiz.
+  const { data: paymentsData } = useSWR('/api/avia/payments', fetcher, { refreshInterval: 60000 });
 
   const tickets: AviaTicket[] = ticketsData?.tickets || [];
   const debts: DebtRow[] = reportsData?.debts || [];
   const debtMap = new Map<string, DebtRow>();
   for (const d of debts) debtMap.set(d.biletRaqam, d);
+
+  // Har bir bilet raqami uchun kirgan to'lovlar (eng yangisi tepada)
+  const payments: AviaPayment[] = paymentsData?.payments || [];
+  const payMap = new Map<string, AviaPayment[]>();
+  for (const p of payments) {
+    if (!p.biletRaqam) continue;
+    const list = payMap.get(p.biletRaqam);
+    if (list) list.push(p);
+    else payMap.set(p.biletRaqam, [p]);
+  }
+  for (const list of payMap.values()) list.sort((a, b) => (a.sana < b.sana ? 1 : -1));
+
+  // Qaysi biletlar yoyilgan (to'lovlari ko'rinadigan)
+  const [openRows, setOpenRows] = useState<Set<string>>(new Set());
+  const toggleRow = (id: string) =>
+    setOpenRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
 
   // Ikkala manba (biletlar + qarz/holat) yuklanmaguncha status chaqnamasin
   const loading = !ticketsData || !reportsData;
@@ -76,7 +106,7 @@ export default function BegzodRoyxatPage() {
         <ListChecks size={24} style={{ color: '#F5A623' }} />
         Biletlar ro&apos;yxati
       </h1>
-      <div style={{ color: '#4A5C50', fontSize: 12, marginBottom: 20 }}>Sana oralig&apos;ini tanlab, barcha biletlar holatini ko&apos;ring</div>
+      <div style={{ color: '#4A5C50', fontSize: 12, marginBottom: 20 }}>Sana oralig&apos;ini tanlab, barcha biletlar holatini ko&apos;ring. Bilet uchun kirgan pullarni ko&apos;rish uchun &quot;To&apos;langan&quot; ustuniga bosing.</div>
 
       {/* Sana oralig'i: dan — gacha */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 18 }}>
@@ -129,14 +159,29 @@ export default function BegzodRoyxatPage() {
                   const d = debtMap.get(t.biletRaqam);
                   const qarz = d ? d.qarz : 0;
                   const tolangan = d ? d.tolangan : t.sotishNarxi;
+                  const payList = payMap.get(t.biletRaqam) || [];
+                  const open = openRows.has(t.id);
+                  const colCount = isAdmin ? 9 : 8;
                   return (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #1E2E24' }}>
+                    <Fragment key={t.id}>
+                    <tr style={{ borderBottom: open ? 'none' : '1px solid #1E2E24' }}>
                       <td style={{ padding: '10px 12px', color: '#8A9A8F', fontSize: 12 }}>{t.sana}</td>
                       <td style={{ padding: '10px 12px', color: '#fff', fontSize: 12, fontFamily: 'var(--font-geist-mono)' }}>{t.biletRaqam}</td>
                       <td style={{ padding: '10px 12px', color: '#fff', fontSize: 13 }}>{t.yolovchi}</td>
                       <td style={{ padding: '10px 12px', color: '#8A9A8F', fontSize: 12 }}>{t.airlineName}</td>
                       <td style={{ padding: '10px 12px', color: '#fff', fontSize: 13, textAlign: 'right' }}>{formatMoney(t.sotishNarxi)}</td>
-                      <td style={{ padding: '10px 12px', color: '#7CFF4F', fontSize: 13, textAlign: 'right' }}>{formatMoney(tolangan)}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                        {payList.length > 0 ? (
+                          <button onClick={() => toggleRow(t.id)} title="Kirgan to'lovlarni ko'rish"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 'auto', padding: 0, border: 'none', background: 'none', color: '#7CFF4F', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                            {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                            {formatMoney(tolangan)}
+                            <span style={{ color: '#4A5C50', fontWeight: 500, fontSize: 11 }}>· {payList.length} to&apos;lov</span>
+                          </button>
+                        ) : (
+                          <span style={{ color: '#7CFF4F', fontSize: 13 }}>{formatMoney(tolangan)}</span>
+                        )}
+                      </td>
                       <td style={{ padding: '10px 12px', color: qarz > 0 ? '#FF5C5C' : '#4A5C50', fontSize: 13, textAlign: 'right', fontWeight: qarz > 0 ? 700 : 400 }}>{formatMoney(qarz)}</td>
                       <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                         {qarz <= 0 ? (
@@ -162,6 +207,25 @@ export default function BegzodRoyxatPage() {
                         </td>
                       )}
                     </tr>
+                    {open && payList.length > 0 && (
+                      <tr style={{ borderBottom: '1px solid #1E2E24' }}>
+                        <td colSpan={colCount} style={{ padding: '0 12px 12px 12px', backgroundColor: '#0F1613' }}>
+                          <div style={{ fontSize: 11, color: '#8A9A8F', padding: '10px 0 6px' }}>Kirgan to&apos;lovlar:</div>
+                          {payList.map((p) => {
+                            const meta = PAY_BADGE[p.tolovTuri] || { label: p.tolovTuri, color: '#8A9A8F' };
+                            return (
+                              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid #16211B', fontSize: 12, flexWrap: 'wrap' }}>
+                                <span style={{ color: '#8A9A8F', minWidth: 84 }}>{p.sana}</span>
+                                <span style={{ color: '#fff', fontWeight: 700, minWidth: 120 }}>{formatMoney(p.summa)}</span>
+                                <span style={{ padding: '2px 8px', borderRadius: 5, backgroundColor: meta.color + '20', color: meta.color, fontSize: 11, fontWeight: 600 }}>{meta.label}</span>
+                                {p.izoh && <span style={{ color: '#4A5C50' }}>— {p.izoh}</span>}
+                              </div>
+                            );
+                          })}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
