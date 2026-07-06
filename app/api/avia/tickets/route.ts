@@ -82,7 +82,8 @@ export async function POST(request: NextRequest) {
     // Blok faqat PULLIK biletga (sotishNarxi > 0) — ikki marta daromad yozilmasin.
     // 0 summali bilet (reissue / bepul / mil) bir xil raqam bilan bemalol qo'shiladi.
     if (!body.allowDuplicate && sotishNarxi > 0) {
-      const norm = (s: string) => s.trim().toLowerCase();
+      // Chiziqcha/probel farqi dublikatni yashirmasin: 250-2118677279 === 2502118677279
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
       const dupTicket = existing.find((t) => norm(t.biletRaqam) === norm(biletRaqam));
       if (dupTicket) {
         return NextResponse.json(
