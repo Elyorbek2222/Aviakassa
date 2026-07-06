@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
+import PWARegister from "@/components/PWARegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,6 +22,11 @@ export const metadata: Metadata = {
   },
   description: "Aviabilet va turizm hisobi — SEM Travel",
   applicationName: "SEM Travel",
+  appleWebApp: {
+    capable: true,
+    title: "SEM Avia",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "SEM Travel — Bilet Hisobi",
     description: "Aviabilet hisobi va boshqaruv tizimi",
@@ -34,6 +40,10 @@ export const metadata: Metadata = {
     title: "SEM Travel — Bilet Hisobi",
     description: "Aviabilet hisobi va boshqaruv tizimi",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0A0F0D",
 };
 
 export default function RootLayout({
@@ -51,6 +61,7 @@ export default function RootLayout({
         style={{ backgroundColor: '#0A0F0D' }}
       >
         <AppShell>{children}</AppShell>
+        <PWARegister />
       </body>
     </html>
   );

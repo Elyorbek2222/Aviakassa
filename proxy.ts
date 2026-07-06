@@ -62,6 +62,6 @@ export const config = {
   // Metadata-rasm yo'llari (og:image, favicon) auth'dan ozod — aks holda
   // ijtimoiy tarmoq crawlerlari rasm o'rniga login sahifasini oladi.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image|twitter-image|manifest|robots.txt|sitemap.xml).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image|twitter-image|manifest|sw.js|robots.txt|sitemap.xml).*)',
   ],
 };
