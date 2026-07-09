@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings } from '@/lib/avia-storage';
+import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings, getObmenlar } from '@/lib/avia-storage';
 import { todayStr } from '@/lib/utils';
 import { requireAuth } from '@/lib/api-auth';
 import type {
@@ -32,9 +32,10 @@ export async function GET(request: NextRequest) {
       getInkassatsiya(),
       getRasxodlar(),
       getRefundlar(),
+      getObmenlar(),
     ]);
     // Quyidagilar sana/agent/aviakompaniya filtrlari bilan qayta tayinlanadi.
-    let [tickets, payments, inkassatsiya, rasxodlar, refundlar] = rest;
+    let [tickets, payments, inkassatsiya, rasxodlar, refundlar, obmenlar] = rest;
 
     // Apply date filters
     if (from) {
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
       inkassatsiya = inkassatsiya.filter((i) => i.sana >= from);
       rasxodlar = rasxodlar.filter((r) => r.sana >= from);
       refundlar = refundlar.filter((r) => r.sana >= from);
+      obmenlar = obmenlar.filter((o) => o.sana >= from);
     }
     if (to) {
       tickets = tickets.filter((t) => t.sana <= to);
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest) {
       inkassatsiya = inkassatsiya.filter((i) => i.sana <= to);
       rasxodlar = rasxodlar.filter((r) => r.sana <= to);
       refundlar = refundlar.filter((r) => r.sana <= to);
+      obmenlar = obmenlar.filter((o) => o.sana <= to);
     }
     if (agentFilter) {
       tickets = tickets.filter((t) => t.agent === agentFilter);
@@ -78,7 +81,8 @@ export async function GET(request: NextRequest) {
     const jamiInkassatsiya = inkassatsiya.reduce((s, i) => s + i.summa, 0);
     const jamiRasxod = rasxodlar.reduce((s, r) => s + r.summa, 0);
     const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
-    const stok = jamiPrixod - jamiInkassatsiya - jamiRasxod - jamiRefund;
+    const obmenUzs = obmenlar.reduce((s, o) => s + o.uzsSumma, 0); // obmen: USD → so'm kirim
+    const stok = jamiPrixod + obmenUzs - jamiInkassatsiya - jamiRasxod - jamiRefund;
 
     // Foyda = (sotish - tarif) + (tarif * komissiya%) + qo'shimcha foyda — har bilet uchun
     const sofFoyda = tickets.reduce((s, t) => {
