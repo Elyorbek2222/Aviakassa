@@ -12,6 +12,8 @@
 // parsing himoyalangan (firstArray / success aniqlash). Aniq shakl jonli kalit
 // bilan test qilinganda tasdiqlanadi.
 
+import type { HisobotZayavka } from '@/types/avia';
+
 const BASE = 'https://api.u-on.ru';
 
 function apiKey(): string {
@@ -170,6 +172,71 @@ export async function createPayment(
   const d = (data && typeof data === 'object' ? (data as Record<string, unknown>) : {}) as Record<string, unknown>;
   const rawId = d.id ?? d.payment_id ?? (d.result && typeof d.result === 'object' ? (d.result as Record<string, unknown>).id : undefined);
   return { ok: true, paymentId: rawId !== undefined ? String(rawId) : undefined };
+}
+
+// ===== Zayavkalar ro'yxati (hisobotlar uchun) =====
+// U-ON'da bitta ro'yxat endpointi yo'q — `POST request/search` ishlatiladi
+// (wrapper: `requests`, 100 ta/sahifa, `page` bilan sahifalanadi). `date_begin_from`
+// (Y-m-d) xizmat sanasi bo'yicha filtr — kelajakdagi zayavkalar ham qaytadi.
+// Har zayavka ichida moliyaviy calc maydonlari bor (payments'ni ochish shart emas).
+
+// Vergul/probel/bo'sh qiymatlarni himoyalab songa aylantiradi.
+function num(x: unknown): number {
+  const n = Number(String(x ?? '').replace(',', '.').replace(/\s/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function mapZayavka(r: Record<string, unknown>): HisobotZayavka {
+  const dstr = (v: unknown) => String(v ?? '').slice(0, 10); // "Y-m-d H:i" -> "Y-m-d"
+  const name = (...parts: unknown[]) =>
+    parts.map((x) => String(x ?? '').trim()).filter(Boolean).join(' ');
+  const sell = num(r.calc_price);
+  const clientPaid = num(r.calc_client);
+  const netto = num(r.calc_price_netto);
+  const partnerPaid = Math.abs(num(r.calc_partner));
+  return {
+    id: Number(r.id) || 0,
+    dateBegin: dstr(r.date_begin),
+    dateEnd: dstr(r.date_end),
+    dateCreated: dstr(r.dat ?? r.created_at ?? r.dat_request),
+    client: name(r.client_surname, r.client_name) || String(r.client_company ?? '') || '—',
+    manager: name(r.manager_surname, r.manager_name),
+    supplierId: Number(r.supplier_id) || 0,
+    supplierName: String(r.supplier_name ?? '') || '',
+    status: String(r.status ?? ''),
+    statusId: Number(r.status_id) || 0,
+    payStatus: String(r.status_pay_name ?? ''),
+    payStatusId: Number(r.status_pay_id) || 0,
+    sell,
+    clientPaid,
+    clientDebt: sell - clientPaid,
+    netto,
+    partnerPaid,
+    partnerDebt: netto - partnerPaid,
+  };
+}
+
+// Xizmat sanasi `sinceDate`(Y-m-d)dan boshlab (kelajak ham) barcha zayavkalar.
+// Sahifalar PARALLEL o'qiladi (har javob katta — ketma-ket sekin). U-ON limiti
+// 10 so'rov/sek — shuning uchun bir vaqtda 5 sahifadan. Sahifa <100 qaytsa — oxiri.
+export async function listZayavki(sinceDate: string): Promise<HisobotZayavka[]> {
+  const PER = 100, BATCH = 5, MAX_PAGE = 40; // 40*100=4000 — amaliy backstop
+  const all: Record<string, unknown>[] = [];
+  for (let start = 1; start <= MAX_PAGE; start += BATCH) {
+    const pages = Array.from({ length: BATCH }, (_, i) => start + i);
+    const results = await Promise.all(
+      pages.map((p) => uonPost('request/search', { date_begin_from: sinceDate, page: p })),
+    );
+    let got = 0;
+    for (const { httpOk, data } of results) {
+      if (!httpOk) continue;
+      const rows = firstArray(data); // wrapper: `requests`
+      all.push(...rows);
+      got += rows.length;
+    }
+    if (got < BATCH * PER) break; // to'liq bo'lmagan partiya = oxiriga yetdik
+  }
+  return all.map(mapZayavka);
 }
 
 // Kalit sozlanganmi (sahifada ogohlantirish uchun)

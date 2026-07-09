@@ -216,6 +216,14 @@ export interface OtchotListItem {
   sverka: SverkaStats;
 }
 
+// Oylik xisobot: biletlarga yozilgan summa ↔ kirgan pul, va oradagi farq (qoldiq).
+export interface OylikXisobotRow {
+  oy: string;         // YYYY-MM
+  biletlar: number;   // otchot sverka.begSum — biletlarga yozilgan summa
+  pulKirgan: number;  // prixot: bilet + o'tkazma yig'indisi
+  farq: number;       // biletlar - pulKirgan (musbat = qoldiq/qarz)
+}
+
 // ===== Prixot (biletlar uchun kirgan pul) — kunlik jurnal, admin tahrirlaydi =====
 // Aviakompaniya otchoti (bilet narxlari) bilan solishtirish uchun. Nom bo'yicha
 // avtomatik moslashtirish ishonchsiz, shuning uchun admin qatorlarni qo'lda tuzatadi.
@@ -284,6 +292,55 @@ export interface TurizmYozuv {
 export interface TurizmDoc {
   oy: string; // YYYY-MM
   yozuvlar: TurizmYozuv[];
+}
+
+// ===== Turizm hisobotlari (U-ON zayavkalaridan jonli hisoblanadi) =====
+// Manba: U-ON `request/search`. Har zayavkada 4 ta calc maydoni bor:
+//   calc_price        = mijoz shartnoma summasi (sotuv)
+//   calc_client       = mijoz TO'LAGAN summa (shu paytgacha)
+//   calc_price_netto  = partnyor tannarxi (netto)
+//   calc_partner (abs)= partnyorga TO'LANGAN summa
+// Shundan: mijoz qarzi = sotuv − to'langan; partnyor qarzi = netto − to'langan.
+// (U-ON'ning "to'lov holati" belgisi qo'lda qo'yiladi va eskirishi mumkin —
+//  shuning uchun qarz summasi calc maydonlaridan hisoblanadi, belgidan emas.)
+export interface HisobotZayavka {
+  id: number;          // U-ON zayavka nomeri
+  dateBegin: string;   // YYYY-MM-DD — xizmat/uchish boshlanish sanasi
+  dateEnd: string;     // YYYY-MM-DD
+  dateCreated: string; // YYYY-MM-DD — zayavka yaratilgan sana
+  client: string;      // mijoz F.I.Sh
+  manager: string;     // menejer
+  supplierId: number;
+  supplierName: string; // partnyor
+  status: string;       // zayavka holati (masalan "В работе")
+  statusId: number;
+  payStatus: string;    // U-ON to'lov holati belgisi (ma'lumot uchun)
+  payStatusId: number;  // 1=to'lanmagan, 2=qisman, 3=to'liq
+  sell: number;         // calc_price — sotuv summasi (so'm)
+  clientPaid: number;   // calc_client — mijoz to'lagan
+  clientDebt: number;   // sell − clientPaid (mijoz bizga qarz)
+  netto: number;        // calc_price_netto — partnyor tannarxi
+  partnerPaid: number;  // |calc_partner| — partnyorga to'langan
+  partnerDebt: number;  // netto − partnerPaid (biz partnyorga qarz)
+}
+
+export interface TurizmHisobot {
+  generatedAt: string; // ISO — qachon yig'ilgan
+  today: string;       // YYYY-MM-DD (Asia/Tashkent)
+  sinceDate: string;   // YYYY-MM-DD — qamrov boshi (12 oy oldin)
+  total: number;       // aktiv zayavkalar soni (Отказ/Аннулирована chiqarilgan)
+  kutilayotgan: HisobotZayavka[];  // A) xizmat sanasi hali kelmagan
+  otkazilmagan: HisobotZayavka[];  // B) mijoz to'lagan, partnyorga o'tkazilmagan
+  mijozQarz: HisobotZayavka[];     // C1) o'tgan sana + mijoz to'liq to'lamagan
+  partnyorQarz: HisobotZayavka[];  // C2) partnyorga qarzimiz
+  kpi: {
+    kutilayotganSoni: number;
+    otkazilmaganSoni: number;
+    mijozQarzSoni: number;
+    mijozQarzSumma: number;
+    partnyorQarzSoni: number;
+    partnyorQarzSumma: number;
+  };
 }
 
 // ===== Audit log (kim / nima / qachon) =====

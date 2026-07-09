@@ -9,10 +9,13 @@ import type {
   AirlineConfig,
   SverkaData,
   OtchotListItem,
+  OylikXisobotRow,
   Obmen,
   PrixotDoc,
+  PrixotYozuv,
   TurizmDoc,
 } from '../types/avia';
+import { PRIXOT_HISOB_TURLARI } from '../types/avia';
 
 // ===== Generic jsonb hujjat yordamchilari =====
 
@@ -106,6 +109,11 @@ export async function addInkassatsiya(item: Inkassatsiya): Promise<Inkassatsiya[
   return getInkassatsiya();
 }
 
+// Mavjud inkassatsiyani yangilash — id bo'yicha upsert
+export async function updateInkassatsiya(item: Inkassatsiya): Promise<void> {
+  await upsertDocs('inkassatsiya', [item]);
+}
+
 // ===== Rasxod =====
 
 export async function getRasxodlar(): Promise<Rasxod[]> {
@@ -153,6 +161,11 @@ export async function addRefund(item: Refund): Promise<Refund[]> {
   return getRefundlar();
 }
 
+// Mavjud refundni yangilash — id bo'yicha upsert
+export async function updateRefund(item: Refund): Promise<void> {
+  await upsertDocs('refund', [item]);
+}
+
 // ===== Oylik sverka (otchot) =====
 
 const EMPTY_SVERKA: SverkaData = {
@@ -188,6 +201,33 @@ export async function listOtchotlar(): Promise<OtchotListItem[]> {
       manbalar: r.doc?.meta?.manbalar || [],
       sverka: r.doc?.meta?.sverka || EMPTY_SVERKA.meta.sverka,
     }))
+    .sort((a, b) => (a.oy < b.oy ? 1 : -1));
+}
+
+// Oylik xisobot: biletlarga yozilgan summa (otchot) ↔ kirgan pul (prixot), oy bo'yicha.
+// Bitta o'qishda ikkala hujjat turini birlashtiradi (otchot jadvalida yonma-yon yashaydi).
+export async function listOylikXisobot(): Promise<OylikXisobotRow[]> {
+  const { data, error } = await getSupabase().from('otchot').select('id, doc');
+  if (error) throw error;
+  const map = new Map<string, { biletlar: number; pulKirgan: number }>();
+  const bucket = (oy: string) => {
+    let m = map.get(oy);
+    if (!m) { m = { biletlar: 0, pulKirgan: 0 }; map.set(oy, m); }
+    return m;
+  };
+  for (const r of (data || []) as { id: string; doc: SverkaData & PrixotDoc }[]) {
+    if (r.id.startsWith('prixot-')) {
+      const oy = r.id.slice('prixot-'.length);
+      const yoz = (r.doc?.yozuvlar || []) as PrixotYozuv[];
+      bucket(oy).pulKirgan += yoz.reduce(
+        (s, y) => s + (PRIXOT_HISOB_TURLARI.includes(y.tur) ? (y.summa || 0) : 0), 0);
+    } else if (!r.id.startsWith('turizm-')) {
+      const oy = r.doc?.meta?.oy || r.id;
+      bucket(oy).biletlar += r.doc?.meta?.sverka?.begSum || 0;
+    }
+  }
+  return Array.from(map.entries())
+    .map(([oy, v]) => ({ oy, biletlar: v.biletlar, pulKirgan: v.pulKirgan, farq: v.biletlar - v.pulKirgan }))
     .sort((a, b) => (a.oy < b.oy ? 1 : -1));
 }
 

@@ -4,16 +4,16 @@ import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import {
   CheckCircle2, AlertTriangle, FileWarning, GitCompareArrows, Coins, Layers,
-  Ticket, Wallet, FolderClock, Calendar,
+  Ticket, Wallet, FolderClock, Calendar, BarChart3, TrendingDown,
 } from 'lucide-react';
-import type { SverkaData, SverkaRow, OtchotListItem } from '@/types/avia';
+import type { SverkaData, SverkaRow, OtchotListItem, OylikXisobotRow } from '@/types/avia';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const fmt = (n: number | null | undefined) =>
   n === null || n === undefined ? '—' : n.toLocaleString('en-US').replaceAll(',', ' ');
 
 type FilterKey = 'all' | 'match' | 'farq' | 'reissue' | 'only_beg' | 'namebad' | 'miss';
-type Tab = 'biletlar' | 'pullar';
+type Tab = 'xisobot' | 'biletlar' | 'pullar';
 
 const C = {
   bg: '#0A0F0D', card: '#141F19', line: '#1E2E24', mut: '#8A9A8F', dim: '#4A5C50',
@@ -70,13 +70,20 @@ export default function OtchotPage() {
   const { data: auth } = useSWR<{ user?: { role?: string } }>('/api/avia/auth', fetcher, { revalidateOnFocus: false });
   const hideSupplier = auth?.user?.role === 'begzod';
 
+  // Oylik xisobot (biletlar ↔ kirgan pul) — begzoddan tashqari rollar ko'radi.
+  const { data: xisobotData } = useSWR<{ xisobot: OylikXisobotRow[] }>(
+    hideSupplier ? null : '/api/avia/otchot?xisobot=1', fetcher, { revalidateOnFocus: false });
+  const xisobot = useMemo(() => xisobotData?.xisobot ?? [], [xisobotData]);
+
   const [selected, setSelected] = useState<string>('');
   // Tanlanmagan bo'lsa — birinchi (eng oxirgi) oy. Effekt ichida setState chaqirmaymiz.
   const activeId = selected || (months[0]?.id ?? '');
 
   const { data } = useSWR<SverkaData>(activeId ? `/api/avia/otchot?id=${activeId}` : null, fetcher, { revalidateOnFocus: false });
 
-  const [tab, setTab] = useState<Tab>('biletlar');
+  const [tab, setTab] = useState<Tab>('xisobot');
+  // begzod xisobot tabini ko'rmaydi — u tanlanib qolsa biletlarga qaytamiz.
+  const activeTab: Tab = hideSupplier && tab === 'xisobot' ? 'biletlar' : tab;
   const [filter, setFilter] = useState<FilterKey>('all');
   const [q, setQ] = useState('');
 
@@ -129,7 +136,7 @@ export default function OtchotPage() {
   const td: React.CSSProperties = { padding: '7px 10px', fontSize: 12, borderBottom: `1px solid ${C.line}`, whiteSpace: 'nowrap' };
 
   const tabBtn = (key: Tab, icon: React.ReactNode, label: string) => {
-    const active = tab === key;
+    const active = activeTab === key;
     return (
       <button onClick={() => setTab(key)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, fontSize: 13.5, cursor: 'pointer', fontWeight: active ? 700 : 500, border: `1px solid ${active ? C.green : C.line}`, backgroundColor: active ? C.green + '18' : C.card, color: active ? C.green : C.mut }}>
         {icon}{label}
@@ -166,23 +173,61 @@ export default function OtchotPage() {
 
       {!activeId ? null : (
         <>
-          {/* KPI */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-            <Kpi icon={<Layers size={18} />} label="Biletlar" value={String(s?.begCount ?? 0)} color={C.blue} />
-            <Kpi icon={<CheckCircle2 size={18} />} label="Mos kelgan" value={String(s?.match ?? 0)} color={C.green} />
-            <Kpi icon={<Coins size={18} />} label="Summa farqi" value={String(s?.farq ?? 0)} color={C.orange} />
-            <Kpi icon={<AlertTriangle size={18} />} label="Faqat Begzodda" value={String(s?.onlyBeg ?? 0)} color={C.orange} />
-            <Kpi icon={<FileWarning size={18} />} label="Kiritilmagan" value={String(s?.srcOnly ?? 0)} color={C.red} />
-            <Kpi icon={<Wallet size={18} />} label="Jami summa (UZS)" value={fmt(s?.begSum ?? 0)} color={C.green} />
-          </div>
+          {/* KPI — tanlangan oy sverkasi. Xisobot (yillik) tabida ko'rsatilmaydi. */}
+          {activeTab !== 'xisobot' && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+              <Kpi icon={<Layers size={18} />} label="Biletlar" value={String(s?.begCount ?? 0)} color={C.blue} />
+              <Kpi icon={<CheckCircle2 size={18} />} label="Mos kelgan" value={String(s?.match ?? 0)} color={C.green} />
+              <Kpi icon={<Coins size={18} />} label="Summa farqi" value={String(s?.farq ?? 0)} color={C.orange} />
+              <Kpi icon={<AlertTriangle size={18} />} label="Faqat Begzodda" value={String(s?.onlyBeg ?? 0)} color={C.orange} />
+              <Kpi icon={<FileWarning size={18} />} label="Kiritilmagan" value={String(s?.srcOnly ?? 0)} color={C.red} />
+              <Kpi icon={<Wallet size={18} />} label="Jami summa (UZS)" value={fmt(s?.begSum ?? 0)} color={C.green} />
+            </div>
+          )}
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {!hideSupplier && tabBtn('xisobot', <BarChart3 size={16} />, 'Oylik balans')}
             {tabBtn('biletlar', <Ticket size={16} />, 'Biletlar')}
             {tabBtn('pullar', <Wallet size={16} />, 'Pullar')}
           </div>
 
-          {tab === 'biletlar' ? (
+          {activeTab === 'xisobot' ? (
+            <>
+              <div style={{ color: C.mut, fontSize: 11.5, lineHeight: 1.8, marginBottom: 12 }}>
+                Har oy: biletlarga yozilgan summa (Begzod otchoti) ↔ haqiqatda kirgan pul (prixot jurnali).{' '}
+                <b style={{ color: '#fff' }}>Farq</b> — musbat bo‘lsa pul kam kirgan (qoldiq/qarz),{' '}
+                <TrendingDown size={12} style={{ display: 'inline', verticalAlign: 'middle', color: C.red }} /> manfiy bo‘lsa ortiqcha kirgan.
+              </div>
+              <div style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                    <thead>
+                      <tr>
+                        <th style={th}>Oy</th>
+                        <th style={{ ...th, textAlign: 'right' }}>Biletlar (yozilgan)</th>
+                        <th style={{ ...th, textAlign: 'right' }}>Kirgan pul</th>
+                        <th style={{ ...th, textAlign: 'right' }}>Farq</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {xisobot.map((x) => (
+                        <tr key={x.oy}>
+                          <td style={{ ...td, color: '#fff', fontWeight: 600 }}>{OY_NOM[x.oy] || x.oy}</td>
+                          <td style={{ ...td, textAlign: 'right', color: '#e6f0ea', fontFamily: 'var(--font-geist-mono)' }}>{fmt(x.biletlar)}</td>
+                          <td style={{ ...td, textAlign: 'right', color: C.green, fontFamily: 'var(--font-geist-mono)' }}>{fmt(x.pulKirgan)}</td>
+                          <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-geist-mono)', color: x.farq > 0 ? C.orange : x.farq < 0 ? C.red : C.dim }}>{(x.farq > 0 ? '+' : '') + fmt(x.farq)}</td>
+                        </tr>
+                      ))}
+                      {xisobot.length === 0 && (
+                        <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: C.dim, padding: 30 }}>{xisobotData ? 'Ma‘lumot yo‘q' : 'Yuklanmoqda…'}</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : activeTab === 'biletlar' ? (
             <>
               <div style={{ color: C.mut, fontSize: 11.5, lineHeight: 1.8, marginBottom: 12 }}>
                 <b style={{ color: '#fff' }}>Izoh:</b> 🟧 <b>Summa farqi</b> — yaxlitlash/komissiyadan tashqari haqiqiy farq. &nbsp;

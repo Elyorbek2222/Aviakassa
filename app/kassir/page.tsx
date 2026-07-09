@@ -8,7 +8,7 @@ import {
   Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText, ArrowRight,
 } from 'lucide-react';
 import { formatMoney, ticketEditRemainingMs, ticketCreatedAtMs } from '@/lib/utils';
-import { AIRLINE_LABELS, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket, type Obmen } from '@/types/avia';
+import { AIRLINE_LABELS, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket, type Obmen, type Refund, type Inkassatsiya } from '@/types/avia';
 import AviaDebtTable from '@/components/avia/AviaDebtTable';
 import RasxodForm from '@/components/avia/RasxodForm';
 import RefundForm from '@/components/avia/RefundForm';
@@ -598,6 +598,83 @@ function ObmenEditModal({ obmen, onClose, onSaved }: { obmen: Obmen; onClose: ()
   );
 }
 
+function RefundEditModal({ refund, onClose, onSaved }: { refund: Refund; onClose: () => void; onSaved: () => void }) {
+  const [summa, setSumma] = useState(String(refund.summa));
+  const [izoh, setIzoh] = useState(refund.izoh || '');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setMessage('');
+    try {
+      const res = await fetch('/api/avia/refund', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: refund.id, summa: Number(summa), izoh }),
+      });
+      if (res.ok) { onSaved(); onClose(); }
+      else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik'); }
+    } catch { setMessage("Serverga ulanib bo'lmadi"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <ModalShell title="Refundni tahrirlash" accent={T.orange} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Summa (UZS)</label>
+          <input type="number" value={summa} onChange={(e) => setSumma(e.target.value)} required style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Izoh</label>
+          <input type="text" value={izoh} onChange={(e) => setIzoh(e.target.value)} style={inputStyle} />
+        </div>
+        <MessageBox message={message} />
+        <SaveButtons loading={loading} accent={T.orange} onClose={onClose} />
+      </form>
+    </ModalShell>
+  );
+}
+
+function InkassatsiyaEditModal({ inkas, onClose, onSaved }: { inkas: Inkassatsiya; onClose: () => void; onSaved: () => void }) {
+  const [summa, setSumma] = useState(String(inkas.summa));
+  const [izoh, setIzoh] = useState(inkas.izoh || '');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setMessage('');
+    try {
+      const res = await fetch('/api/avia/inkassatsiya', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: inkas.id, summa: Number(summa), izoh }),
+      });
+      if (res.ok) { onSaved(); onClose(); }
+      else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik'); }
+    } catch { setMessage("Serverga ulanib bo'lmadi"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <ModalShell title="Inkassatsiyani tahrirlash" accent={T.purple} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: T.purple + '10', border: `1px solid ${T.purple}25`, marginBottom: 14, fontSize: 12, color: T.mut }}>
+          {inkas.turi === 'kassa' ? 'Kassa topshirish' : (inkas.airlineName || 'Inkassatsiya')}
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Summa (UZS)</label>
+          <input type="number" value={summa} onChange={(e) => setSumma(e.target.value)} required style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Izoh</label>
+          <input type="text" value={izoh} onChange={(e) => setIzoh(e.target.value)} style={inputStyle} />
+        </div>
+        <MessageBox message={message} />
+        <SaveButtons loading={loading} accent={T.purple} onClose={onClose} />
+      </form>
+    </ModalShell>
+  );
+}
+
 function SaveButtons({ loading, accent, onClose }: { loading: boolean; accent: string; onClose: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 10 }}>
@@ -638,6 +715,8 @@ export default function FinansistPage() {
   const [editPayment, setEditPayment] = useState<AviaPayment | null>(null);
   const [editRasxod, setEditRasxod] = useState<Rasxod | null>(null);
   const [editObmen, setEditObmen] = useState<Obmen | null>(null);
+  const [editRefund, setEditRefund] = useState<Refund | null>(null);
+  const [editInk, setEditInk] = useState<Inkassatsiya | null>(null);
   const [movFilter, setMovFilter] = useState<'all' | 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas'>('all');
   const [movSearch, setMovSearch] = useState('');
   const [tixSearch, setTixSearch] = useState('');
@@ -655,8 +734,8 @@ export default function FinansistPage() {
   // Hammasi (kassa kitobi/kümülatив hisob uchun) va davrga filtrlangani
   const allPayments = (paymentsData?.payments || []) as AviaPayment[];
   const allRasxod = (rasxodData?.rasxodlar || []) as Rasxod[];
-  const allRefund = (refundData?.refundlar || []) as { id: string; sana: string; summa: number; mijozIsmi?: string; biletRaqam?: string }[];
-  const allInk = (inkData?.inkassatsiya || []) as { id: string; sana: string; summa: number; turi?: string; airlineName?: string }[];
+  const allRefund = (refundData?.refundlar || []) as Refund[];
+  const allInk = (inkData?.inkassatsiya || []) as Inkassatsiya[];
   const allObmen = (obmenData?.obmenlar || []) as Obmen[];
   const allTickets = (ticketsData?.tickets || []) as AviaTicket[];
   const payments = allPayments.filter((p) => inPeriod(p.sana, period));
@@ -718,13 +797,13 @@ export default function FinansistPage() {
   const refreshAll = () => { mutatePayments(); mutateRasxod(); mutateRefund(); mutateInk(); mutateObmen(); mutateReports(); };
 
   // ===== Birlashgan Kirim-Chiqim jurnali =====
-  type Mov = { id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas'; sana: string; summa: number; label: string; sub?: string; payment?: AviaPayment; rasxod?: Rasxod; obmen?: Obmen };
+  type Mov = { id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas'; sana: string; summa: number; label: string; sub?: string; payment?: AviaPayment; rasxod?: Rasxod; obmen?: Obmen; refund?: Refund; inkas?: Inkassatsiya };
   const movements: Mov[] = [
     ...payments.map((p) => ({ id: p.id, kind: 'prixod' as const, sana: p.sana, summa: p.summa, label: p.mijozIsmi || p.biletRaqam || '—', sub: `${p.tolovTuri}${p.valyuta === 'usd' ? ` · $${fmtUsd(p.summAsl || 0)}` : ''}`, payment: p })),
     ...rasxodlar.map((r) => ({ id: r.id, kind: 'rasxod' as const, sana: r.sana, summa: r.summa, label: r.sabab || 'Rasxod', rasxod: r })),
-    ...refundlar.map((r) => ({ id: r.id, kind: 'refund' as const, sana: r.sana, summa: r.summa, label: r.mijozIsmi || r.biletRaqam || 'Refund' })),
+    ...refundlar.map((r) => ({ id: r.id, kind: 'refund' as const, sana: r.sana, summa: r.summa, label: r.mijozIsmi || r.biletRaqam || 'Refund', refund: r })),
     ...obmenPeriod.map((o) => ({ id: o.id, kind: 'obmen' as const, sana: o.sana, summa: o.uzsSumma, label: `Obmen $${fmtUsd(o.usdSumma)} → so'm`, sub: `kurs ${fmtUsd(o.kurs)}`, obmen: o })),
-    ...inkPeriod.map((i) => ({ id: i.id, kind: 'inkas' as const, sana: i.sana, summa: i.summa, label: i.turi === 'kassa' ? 'Kassa topshirish' : (i.airlineName || 'Inkassatsiya') })),
+    ...inkPeriod.map((i) => ({ id: i.id, kind: 'inkas' as const, sana: i.sana, summa: i.summa, label: i.turi === 'kassa' ? 'Kassa topshirish' : (i.airlineName || 'Inkassatsiya'), inkas: i })),
   ].sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a));
   const movShown = movements.filter((m) => {
     if (movFilter !== 'all' && m.kind !== movFilter) return false;
@@ -1047,13 +1126,15 @@ export default function FinansistPage() {
                       {movShown.map((m) => {
                         const meta = MOV_META[m.kind];
                         const remaining = ticketEditRemainingMs(m, now);
-                        const editable = m.kind === 'prixod' || m.kind === 'rasxod' || m.kind === 'obmen';
+                        const editable = true; // barcha harakatlar 48 soat ichida tahrirlanadi
                         const canEdit = editable && remaining > 0;
                         const soat = Math.floor(remaining / 3600000);
                         const openEdit = () => {
                           if (m.kind === 'prixod') setEditPayment(m.payment!);
                           else if (m.kind === 'rasxod') setEditRasxod(m.rasxod!);
                           else if (m.kind === 'obmen') setEditObmen(m.obmen!);
+                          else if (m.kind === 'refund') setEditRefund(m.refund!);
+                          else if (m.kind === 'inkas') setEditInk(m.inkas!);
                         };
                         return (
                           <tr key={m.id} onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover(null)} style={{ borderBottom: `1px solid ${T.line}`, backgroundColor: hover === m.id ? '#1E2E2450' : 'transparent' }}>
@@ -1133,6 +1214,8 @@ export default function FinansistPage() {
       {editPayment && <PaymentEditModal payment={editPayment} onClose={() => setEditPayment(null)} onSaved={refreshAll} />}
       {editRasxod && <RasxodEditModal rasxod={editRasxod} onClose={() => setEditRasxod(null)} onSaved={refreshAll} />}
       {editObmen && <ObmenEditModal obmen={editObmen} onClose={() => setEditObmen(null)} onSaved={refreshAll} />}
+      {editRefund && <RefundEditModal refund={editRefund} onClose={() => setEditRefund(null)} onSaved={refreshAll} />}
+      {editInk && <InkassatsiyaEditModal inkas={editInk} onClose={() => setEditInk(null)} onSaved={refreshAll} />}
     </div>
   );
 }

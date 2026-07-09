@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Barcha manbalarni PARALLEL o'qiymiz — ilgari 6 so'rov ketma-ket edi
     // (~6× sekin). Endi eng sekin bitta so'rov vaqtiga tushadi.
-    let [settings, tickets, payments, inkassatsiya, rasxodlar, refundlar] = await Promise.all([
+    const [settings, ...rest] = await Promise.all([
       getSettings(),
       getTickets(),
       getPayments(),
@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
       getRasxodlar(),
       getRefundlar(),
     ]);
+    // Quyidagilar sana/agent/aviakompaniya filtrlari bilan qayta tayinlanadi.
+    let [tickets, payments, inkassatsiya, rasxodlar, refundlar] = rest;
 
     // Apply date filters
     if (from) {
