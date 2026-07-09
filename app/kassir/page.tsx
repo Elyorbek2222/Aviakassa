@@ -722,6 +722,10 @@ export default function FinansistPage() {
   const [tixSearch, setTixSearch] = useState('');
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t); }, []);
+  // Yon menyudagi "Hisobotlar" linki /kassir?view=hisobot ga olib keladi — shu ko'rinishni ochamiz
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'hisobot') setView('hisobot');
+  }, []);
 
   const { data: paymentsData, mutate: mutatePayments } = useSWR('/api/avia/payments', fetcher, { refreshInterval: 60000 });
   const { data: rasxodData, mutate: mutateRasxod } = useSWR('/api/avia/rasxod', fetcher, { refreshInterval: 60000 });

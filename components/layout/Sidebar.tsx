@@ -70,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/tickets', label: 'Biletlar', icon: <FileText size={18} /> },
       { href: '/otchot', label: 'Otchot', icon: <FolderClock size={18} /> },
+      { href: '/kassir?view=hisobot', label: 'Hisobotlar', icon: <BarChart3 size={18} /> },
       { href: '/prixot', label: 'Prixot sverka', icon: <Coins size={18} /> },
       { href: '/audit', label: 'Audit jurnali', icon: <History size={18} /> },
     ],
@@ -106,6 +107,9 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
   const [user, setUser] = useState<AuthUser | null>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [logoutHover, setLogoutHover] = useState(false);
+  // Joriy URL query'si (masalan ?view=hisobot) — /kassir'ning ikki linkini ajratish uchun.
+  const [search, setSearch] = useState('');
+  useEffect(() => { setSearch(typeof window !== 'undefined' ? window.location.search : ''); }, [pathname]);
 
   useEffect(() => {
     fetch('/api/avia/auth')
@@ -119,7 +123,7 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
   const role = user?.role ?? null;
   const accent = role ? ROLE_ACCENT[role] : '#4A5C50';
   const allowedPages = role ? (ROLE_PAGES[role] || []) : [];
-  const isAllowed = (href: string) => allowedPages.includes(href);
+  const isAllowed = (href: string) => allowedPages.includes(href.split('?')[0]);
 
   const handleLogout = async () => {
     await fetch('/api/avia/auth', { method: 'DELETE' });
@@ -188,7 +192,13 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
                 {group.title}
               </div>
               {items.map((item) => {
-                const isActive = pathname === item.href;
+                const [itemPath, itemQuery] = item.href.split('?');
+                // Active: yo'l mos kelsa; query'li link faqat o'sha query bo'lganda,
+                // /kassir'ning oddiy linki esa hisobot ko'rinishida emasligida yonadi.
+                const isActive = pathname === itemPath && (
+                  itemQuery ? search.includes(itemQuery)
+                            : !(itemPath === '/kassir' && search.includes('view=hisobot'))
+                );
                 const isHovered = hoveredItem === item.href;
                 return (
                   <Link
