@@ -706,7 +706,7 @@ const thStyle: React.CSSProperties = {
 
 export default function FinansistPage() {
   const [view, setView] = useState<ViewKey>('kassa');
-  const [report, setReport] = useState<ReportKey>('kitob');
+  const [report, setReport] = useState<ReportKey>('jurnal');
   const [bookCur, setBookCur] = useState<Valyuta>('uzs');
   const [tab, setTab] = useState<TabKey>('prixod');
   const [hover, setHover] = useState<string | null>(null);
@@ -1037,8 +1037,8 @@ export default function FinansistPage() {
         <div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {([
-              { k: 'kitob' as const, l: 'Kassa kitobi', icon: <BookOpen size={15} /> },
               { k: 'jurnal' as const, l: 'Kirim-Chiqim', icon: <ArrowLeftRight size={15} /> },
+              { k: 'kitob' as const, l: 'Kassa kitobi', icon: <BookOpen size={15} /> },
               { k: 'qarz' as const, l: 'Qarzdorlar', icon: <Users size={15} /> },
               { k: 'biletlar' as const, l: 'Biletlar', icon: <Plane size={15} /> },
             ]).map((r) => (

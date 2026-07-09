@@ -19,6 +19,7 @@ import {
   ListChecks,
   Coins,
   Globe,
+  Wallet,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -35,13 +36,17 @@ interface NavGroup {
 
 // Yon menyu bo'limlarga guruhlangan — kerakli sahifani tez topish uchun.
 // Rolga ko'ra bo'sh guruhlar avtomatik yashiriladi.
+// Ish-oqimiga qarab: OPERATSIYA (pul kirim-chiqimi, bilet kirgazish) yuqorida,
+// HISOBOTLAR (ko'rish/sverka) alohida pastda. Takroriy sahifalar (To'lovlar,
+// Inkassatsiya, Qarzdorlik, Biletlar) menyudan olib tashlandi — ular Finansist →
+// Hisobotlar ichida (Kirim-Chiqim / Qarzdorlar / Biletlar) allaqachon bor.
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'Asosiy',
+    title: 'Boshqaruv',
     items: [{ href: '/', label: 'Dashboard', icon: <BarChart3 size={18} /> }],
   },
   {
-    title: 'Aviakassir',
+    title: 'Aviakassa',
     items: [
       { href: '/begzod', label: 'Biletlar kirgazish', icon: <FileText size={18} /> },
       { href: '/begzod/royxat', label: "Biletlar ro'yxati", icon: <ListChecks size={18} /> },
@@ -49,28 +54,26 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Moliya',
+    // Pul kirim-chiqimi — bitta joyda (Finansist: prixod/rasxod/refund/obmen/inkassatsiya)
+    title: 'Kassa',
     items: [
-      { href: '/kassir', label: 'Finansist', icon: <CreditCard size={18} /> },
+      { href: '/kassir', label: 'Finansist (kassa)', icon: <CreditCard size={18} /> },
       { href: '/buxgalter', label: 'Buxgalter', icon: <Landmark size={18} /> },
-      { href: '/payments', label: "To'lovlar", icon: <CreditCard size={18} /> },
-      { href: '/inkassatsiya', label: 'Inkassatsiya', icon: <Landmark size={18} /> },
-      { href: '/debts', label: 'Qarzdorlik', icon: <AlertTriangle size={18} /> },
     ],
   },
   {
     title: 'Turizm',
     items: [
       { href: '/turizm', label: 'Turizm (SEM Travel)', icon: <Globe size={18} /> },
-      { href: '/turizm/hisobot', label: 'Hisobotlar', icon: <FileText size={18} /> },
+      { href: '/turizm/hisobot', label: 'Turizm hisoboti', icon: <FileText size={18} /> },
     ],
   },
   {
-    title: 'Hisobot',
+    // Barcha hisobotlar — bitta mantiq bilan yonma-yon (detaldan umumiyga)
+    title: 'Hisobotlar',
     items: [
-      { href: '/tickets', label: 'Biletlar', icon: <FileText size={18} /> },
-      { href: '/otchot', label: 'Otchot', icon: <FolderClock size={18} /> },
-      { href: '/kassir?view=hisobot', label: 'Hisobotlar', icon: <BarChart3 size={18} /> },
+      { href: '/kassir?view=hisobot', label: 'Kassa hisoboti', icon: <Wallet size={18} /> },
+      { href: '/otchot', label: 'Otchot (oylik sverka)', icon: <FolderClock size={18} /> },
       { href: '/prixot', label: 'Prixot sverka', icon: <Coins size={18} /> },
       { href: '/audit', label: 'Audit jurnali', icon: <History size={18} /> },
     ],
@@ -78,7 +81,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Sozlama',
     items: [
-      { href: '/upload', label: 'Excel Yuklash', icon: <Upload size={18} /> },
+      { href: '/upload', label: 'Excel yuklash', icon: <Upload size={18} /> },
       { href: '/settings', label: 'Sozlamalar', icon: <Sliders size={18} /> },
       { href: '/qollanma', label: "Qo'llanma", icon: <BookOpen size={18} /> },
     ],
