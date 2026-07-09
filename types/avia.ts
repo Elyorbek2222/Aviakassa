@@ -96,6 +96,30 @@ export interface Obmen {
   izoh?: string;
 }
 
+// ===== Perevod (bank hisobidan chiqim) =====
+// Naqd + plastik + perechisleniya pullar bank hisobiga (schet) yig'iladi. Perevod =
+// o'sha bankdan chiqim: aviakompaniyaga to'lov, nalog, ish haqi, boshqa xarajat.
+// Aviakompaniyaga perevod o'sha aviakompaniya qarzini (partner debt) kamaytiradi.
+
+export type PerevodTur = 'aviakompaniya' | 'nalog' | 'ish_haqi' | 'boshqa';
+
+export const PEREVOD_TUR_LABEL: Record<PerevodTur, string> = {
+  aviakompaniya: 'Aviakompaniya',
+  nalog: 'Nalog / soliq',
+  ish_haqi: 'Ish haqi',
+  boshqa: 'Boshqa xarajat',
+};
+
+export interface Perevod {
+  id: string;
+  sana: string; // YYYY-MM-DD
+  tur: PerevodTur;
+  summa: number; // UZS
+  airline?: AirlineKey; // faqat tur === 'aviakompaniya'
+  airlineName?: string; // ko'rsatish uchun
+  izoh?: string;
+}
+
 // ===== Settings =====
 
 export interface AirlineConfig {
@@ -137,7 +161,11 @@ export interface AviaKPI {
   jamiBiletlar: number;
   bugunBiletlar: number;
   jamiSotuv: number;
-  stok: number; // prixod (payments) - inkassatsiya
+  stok: number; // NAQD kassa (Excel OSTATOK) = naqd + obmen(so'm) − inkassatsiya − rasxod − refund
+  usdKassa: number; // USD kassa = USD to'lovlar − obmen(USD)
+  bankUzs: number; // Plastik + perechisleniya (bank kirim) — naqd kassadan tashqarida
+  bankBalans: number; // Bank hisobi balansi = plastik+perech + naqddan topshirilgan − perevodlar
+  jamiPerevod: number; // bankdan chiqqan perevodlar jami (UZS)
   jamiQarzdorlik: number; // partner debt
   sofFoyda: number;
   qoshimchaFoyda: number; // shundan Begzodning alohida kiritgan ekstra foydasi (UZS)
@@ -355,6 +383,7 @@ export type AuditEntity =
   | 'refund'
   | 'obmen'
   | 'inkassatsiya'
+  | 'perevod'
   | 'settings'
   | 'otchot'
   | 'prixot'

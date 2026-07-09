@@ -5,10 +5,10 @@ import useSWR from 'swr';
 import {
   Banknote, Smartphone, Building2, ArrowUpRight, ArrowDownRight,
   TrendingDown, CheckCircle2, Landmark, Calculator, Pencil, Lock, X,
-  Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText, ArrowRight,
+  Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText, ArrowRight, Send,
 } from 'lucide-react';
 import { formatMoney, ticketEditRemainingMs, ticketCreatedAtMs } from '@/lib/utils';
-import { AIRLINE_LABELS, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket, type Obmen, type Refund, type Inkassatsiya } from '@/types/avia';
+import { AIRLINE_LABELS, PEREVOD_TUR_LABEL, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket, type Obmen, type Refund, type Inkassatsiya, type Perevod, type PerevodTur } from '@/types/avia';
 import AviaDebtTable from '@/components/avia/AviaDebtTable';
 import RasxodForm from '@/components/avia/RasxodForm';
 import RefundForm from '@/components/avia/RefundForm';
@@ -22,7 +22,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // ===== Tema tokenlari =====
 const T = {
   bg: '#0A0F0D', card: '#141F19', line: '#1E2E24', mut: '#8A9A8F', dim: '#4A5C50',
-  text: '#fff', green: '#7CFF4F', blue: '#2CA5E0', red: '#FF5C5C', orange: '#F5A623', purple: '#9B59B6', teal: '#14B8A6',
+  text: '#fff', green: '#7CFF4F', blue: '#2CA5E0', red: '#FF5C5C', orange: '#F5A623', purple: '#9B59B6', teal: '#14B8A6', indigo: '#6366F1',
 };
 const ACCENT = T.blue;
 const card: React.CSSProperties = { backgroundColor: T.card, border: `1px solid ${T.line}`, borderRadius: 14, padding: 20 };
@@ -330,6 +330,75 @@ function InkassatsiyaTab({ onSuccess }: { onSuccess: () => void }) {
         cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, letterSpacing: '0.04em',
       }}>
         {loading ? 'Saqlanmoqda...' : turi === 'kassa' ? '↪ Kassa Topshirish' : '↪ Inkassatsiya Yozish'}
+      </button>
+    </form>
+  );
+}
+
+// Perevod: bank hisobidan chiqim (aviakompaniya / nalog / ish haqi / boshqa)
+function PerevodTab({ onSuccess }: { onSuccess: () => void }) {
+  const [tur, setTur] = useState<PerevodTur>('aviakompaniya');
+  const [airline, setAirline] = useState<AirlineKey>('uzairways');
+  const [summa, setSumma] = useState('');
+  const [izoh, setIzoh] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    try {
+      const body: Record<string, unknown> = { tur, summa: Number(summa), izoh: izoh || undefined };
+      if (tur === 'aviakompaniya') body.airline = airline;
+      const res = await fetch('/api/avia/perevod', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { setMessage('Perevod saqlandi!'); setSumma(''); setIzoh(''); onSuccess(); }
+      else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik'); }
+    } catch { setMessage("Serverga ulanib bo'lmadi"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+        {(Object.keys(PEREVOD_TUR_LABEL) as PerevodTur[]).map((k) => (
+          <button type="button" key={k} onClick={() => setTur(k)} style={{
+            padding: '9px 12px', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            border: `1px solid ${tur === k ? T.indigo : T.line}`,
+            backgroundColor: tur === k ? T.indigo + '18' : 'transparent',
+            color: tur === k ? T.indigo : T.dim,
+          }}>{PEREVOD_TUR_LABEL[k]}</button>
+        ))}
+      </div>
+      {tur === 'aviakompaniya' && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Aviakompaniya (partnyor)</label>
+          <select value={airline} onChange={(e) => setAirline(e.target.value as AirlineKey)} style={inputStyle}>
+            {Object.entries(AIRLINE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      <div style={{ marginBottom: 14 }}>
+        <label style={labelStyle}>Summa (UZS)</label>
+        <input type="number" value={summa} onChange={(e) => setSumma(e.target.value)} placeholder="0" required style={inputStyle} />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Izoh</label>
+        <input type="text" value={izoh} onChange={(e) => setIzoh(e.target.value)} placeholder="To'lov asosi / izoh" style={inputStyle} />
+      </div>
+      <MessageBox message={message} />
+      <button type="submit" disabled={loading} style={{
+        width: '100%', padding: '12px 20px', borderRadius: 9, border: `1px solid ${T.indigo}`,
+        backgroundColor: T.indigo + '18', color: T.indigo, fontSize: 14, fontWeight: 700,
+        cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, letterSpacing: '0.04em',
+      }}>
+        {loading ? 'Saqlanmoqda...' : '↪ Perevod (bankdan)'}
       </button>
     </form>
   );
@@ -675,6 +744,47 @@ function InkassatsiyaEditModal({ inkas, onClose, onSaved }: { inkas: Inkassatsiy
   );
 }
 
+function PerevodEditModal({ perevod, onClose, onSaved }: { perevod: Perevod; onClose: () => void; onSaved: () => void }) {
+  const [summa, setSumma] = useState(String(perevod.summa));
+  const [izoh, setIzoh] = useState(perevod.izoh || '');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setMessage('');
+    try {
+      const res = await fetch('/api/avia/perevod', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: perevod.id, summa: Number(summa), izoh }),
+      });
+      if (res.ok) { onSaved(); onClose(); }
+      else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik'); }
+    } catch { setMessage("Serverga ulanib bo'lmadi"); }
+    finally { setLoading(false); }
+  };
+
+  const nomi = perevod.tur === 'aviakompaniya' ? (perevod.airlineName || 'Aviakompaniya') : PEREVOD_TUR_LABEL[perevod.tur];
+  return (
+    <ModalShell title="Perevodni tahrirlash" accent={T.indigo} onClose={onClose}>
+      <form onSubmit={submit}>
+        <div style={{ padding: '8px 12px', borderRadius: 8, backgroundColor: T.indigo + '10', border: `1px solid ${T.indigo}25`, marginBottom: 14, fontSize: 12, color: T.mut }}>
+          {nomi}
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>Summa (UZS)</label>
+          <input type="number" value={summa} onChange={(e) => setSumma(e.target.value)} required style={inputStyle} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Izoh</label>
+          <input type="text" value={izoh} onChange={(e) => setIzoh(e.target.value)} style={inputStyle} />
+        </div>
+        <MessageBox message={message} />
+        <SaveButtons loading={loading} accent={T.indigo} onClose={onClose} />
+      </form>
+    </ModalShell>
+  );
+}
+
 function SaveButtons({ loading, accent, onClose }: { loading: boolean; accent: string; onClose: () => void }) {
   return (
     <div style={{ display: 'flex', gap: 10 }}>
@@ -692,9 +802,10 @@ const TABS = [
   { key: 'refund' as const, label: 'Refund', color: T.orange, icon: <TrendingDown size={14} /> },
   { key: 'obmen' as const, label: 'Obmen', color: T.teal, icon: <ArrowLeftRight size={14} /> },
   { key: 'inkassatsiya' as const, label: 'Inkassatsiya', color: T.purple, icon: <Landmark size={14} /> },
+  { key: 'perevod' as const, label: 'Perevod', color: T.indigo, icon: <Send size={14} /> },
 ];
 
-type TabKey = 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkassatsiya';
+type TabKey = 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkassatsiya' | 'perevod';
 type ViewKey = 'kassa' | 'hisobot';
 type ReportKey = 'kitob' | 'jurnal' | 'qarz' | 'biletlar';
 
@@ -717,13 +828,16 @@ export default function FinansistPage() {
   const [editObmen, setEditObmen] = useState<Obmen | null>(null);
   const [editRefund, setEditRefund] = useState<Refund | null>(null);
   const [editInk, setEditInk] = useState<Inkassatsiya | null>(null);
-  const [movFilter, setMovFilter] = useState<'all' | 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas'>('all');
+  const [editPerevod, setEditPerevod] = useState<Perevod | null>(null);
+  const [movFilter, setMovFilter] = useState<'all' | 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas' | 'perevod'>('all');
   const [movSearch, setMovSearch] = useState('');
   const [tixSearch, setTixSearch] = useState('');
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t); }, []);
   // Yon menyudagi "Hisobotlar" linki /kassir?view=hisobot ga olib keladi — shu ko'rinishni ochamiz
   useEffect(() => {
+    // ponytail: URL faqat mount'dan keyin (client) o'qiladi — hydration mos qolishi uchun.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'hisobot') setView('hisobot');
   }, []);
 
@@ -732,6 +846,7 @@ export default function FinansistPage() {
   const { data: refundData, mutate: mutateRefund } = useSWR('/api/avia/refund', fetcher, { refreshInterval: 60000 });
   const { data: inkData, mutate: mutateInk } = useSWR('/api/avia/inkassatsiya', fetcher, { refreshInterval: 60000 });
   const { data: obmenData, mutate: mutateObmen } = useSWR('/api/avia/obmen', fetcher, { refreshInterval: 60000 });
+  const { data: perevodData, mutate: mutatePerevod } = useSWR('/api/avia/perevod', fetcher, { refreshInterval: 60000 });
   const { data: ticketsData } = useSWR('/api/avia/tickets', fetcher, { refreshInterval: 60000 });
   const { data: reportsData, mutate: mutateReports } = useSWR(`/api/avia/reports${periodQuery(period)}`, fetcher, { refreshInterval: 60000 });
 
@@ -741,12 +856,14 @@ export default function FinansistPage() {
   const allRefund = (refundData?.refundlar || []) as Refund[];
   const allInk = (inkData?.inkassatsiya || []) as Inkassatsiya[];
   const allObmen = (obmenData?.obmenlar || []) as Obmen[];
+  const allPerevod = (perevodData?.perevodlar || []) as Perevod[];
   const allTickets = (ticketsData?.tickets || []) as AviaTicket[];
   const payments = allPayments.filter((p) => inPeriod(p.sana, period));
   const rasxodlar = allRasxod.filter((r) => inPeriod(r.sana, period));
   const refundlar = allRefund.filter((r) => inPeriod(r.sana, period));
   const inkPeriod = allInk.filter((i) => inPeriod(i.sana, period));
   const obmenPeriod = allObmen.filter((o) => inPeriod(o.sana, period));
+  const perevodPeriod = allPerevod.filter((p) => inPeriod(p.sana, period));
 
   const debts = reportsData?.debts || [];
   const settledCount = reportsData?.kpi?.settledCount ?? 0;
@@ -758,7 +875,7 @@ export default function FinansistPage() {
   const naqd = byType(uzsPay, 'naqd');
   const plastik = byType(uzsPay, 'plastik');
   const perechisleniya = byType(uzsPay, 'perechisleniya');
-  const uzsPrixod = naqd + plastik + perechisleniya;
+  const bankUzs = plastik + perechisleniya; // karta + o'tkazma — bankda, naqd kassaga kirmaydi
   const usdKirim = usdPay.reduce((s, p) => s + (p.summAsl || 0), 0);
 
   const jamiRasxod = rasxodlar.reduce((s, r) => s + r.summa, 0);
@@ -767,16 +884,18 @@ export default function FinansistPage() {
   const jamiKassaTopshirish = inkPeriod.filter((i) => i.turi === 'kassa').reduce((s, i) => s + i.summa, 0);
   const obmenUsd = obmenPeriod.reduce((s, o) => s + o.usdSumma, 0); // davrda USD dan chiqqan
   const obmenUzs = obmenPeriod.reduce((s, o) => s + o.uzsSumma, 0); // davrda so'mga kirgan
+  const jamiPerevod = perevodPeriod.reduce((s, p) => s + p.summa, 0); // davrda bankdan chiqqan
 
   // ===== Kun boshi / kun oxiri ostatka (davr chegaralari bo'yicha kümülатив) =====
-  // UZS kassa = UZS to'lovlar + obmen(so'm) − rasxod − refund − inkassatsiya
+  // NAQD kassa (Excel OSTATOK) = naqd + obmen(so'm) − rasxod − refund − inkassatsiya
   // USD kassa = USD to'lovlar − obmen(USD)
+  // Plastik/perechisleniya bankka boradi — naqd kassaga kirmaydi.
   const { from: pFrom, to: pTo } = periodRange(period);
   const before = (s: string) => (pFrom ? s < pFrom : false);   // davrdan oldin
   const upto = (s: string) => (pTo ? s <= pTo : true);          // davr oxirigacha
   const netUZS = (pred: (s: string) => boolean) => {
     let s = 0;
-    allPayments.forEach((p) => { if (p.valyuta !== 'usd' && pred(p.sana)) s += p.summa; });
+    allPayments.forEach((p) => { if (p.valyuta !== 'usd' && p.tolovTuri === 'naqd' && pred(p.sana)) s += p.summa; });
     allObmen.forEach((o) => { if (pred(o.sana)) s += o.uzsSumma; });
     allRasxod.forEach((r) => { if (pred(r.sana)) s -= r.summa; });
     allRefund.forEach((r) => { if (pred(r.sana)) s -= r.summa; });
@@ -789,25 +908,37 @@ export default function FinansistPage() {
     allObmen.forEach((o) => { if (pred(o.sana)) s -= o.usdSumma; });
     return s;
   };
+  // BANK hisobi (schet): plastik + perechisleniya to'g'ridan-to'g'ri bankka; naqddan
+  // "Kassa topshirish" bankka o'tkaziladi; perevodlar bankdan chiqadi.
+  const netBank = (pred: (s: string) => boolean) => {
+    let s = 0;
+    allPayments.forEach((p) => { if (p.valyuta !== 'usd' && (p.tolovTuri === 'plastik' || p.tolovTuri === 'perechisleniya') && pred(p.sana)) s += p.summa; });
+    allInk.forEach((i) => { if (i.turi === 'kassa' && pred(i.sana)) s += i.summa; }); // naqddan topshirilgan
+    allPerevod.forEach((p) => { if (pred(p.sana)) s -= p.summa; });
+    return s;
+  };
   const uzsBoshi = netUZS(before);
   const uzsOxiri = netUZS(upto);
   const usdBoshi = netUSD(before);
   const usdOxiri = netUSD(upto);
+  const bankBoshi = netBank(before);
+  const bankOxiri = netBank(upto);
 
   // Naqd sverka (UZS): kutilgan naqd = UZS naqd kirim + obmen so'm − rasxod − refund − kassa topshirish
   const kutilganNaqd = naqd + obmenUzs - jamiRasxod - jamiRefund - jamiKassaTopshirish;
   const farq = sanalganNaqd === '' ? null : Number(sanalganNaqd) - kutilganNaqd;
 
-  const refreshAll = () => { mutatePayments(); mutateRasxod(); mutateRefund(); mutateInk(); mutateObmen(); mutateReports(); };
+  const refreshAll = () => { mutatePayments(); mutateRasxod(); mutateRefund(); mutateInk(); mutateObmen(); mutatePerevod(); mutateReports(); };
 
   // ===== Birlashgan Kirim-Chiqim jurnali =====
-  type Mov = { id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas'; sana: string; summa: number; label: string; sub?: string; payment?: AviaPayment; rasxod?: Rasxod; obmen?: Obmen; refund?: Refund; inkas?: Inkassatsiya };
+  type Mov = { id: string; kind: 'prixod' | 'rasxod' | 'refund' | 'obmen' | 'inkas' | 'perevod'; sana: string; summa: number; label: string; sub?: string; payment?: AviaPayment; rasxod?: Rasxod; obmen?: Obmen; refund?: Refund; inkas?: Inkassatsiya; perevod?: Perevod };
   const movements: Mov[] = [
     ...payments.map((p) => ({ id: p.id, kind: 'prixod' as const, sana: p.sana, summa: p.summa, label: p.mijozIsmi || p.biletRaqam || '—', sub: `${p.tolovTuri}${p.valyuta === 'usd' ? ` · $${fmtUsd(p.summAsl || 0)}` : ''}`, payment: p })),
     ...rasxodlar.map((r) => ({ id: r.id, kind: 'rasxod' as const, sana: r.sana, summa: r.summa, label: r.sabab || 'Rasxod', rasxod: r })),
     ...refundlar.map((r) => ({ id: r.id, kind: 'refund' as const, sana: r.sana, summa: r.summa, label: r.mijozIsmi || r.biletRaqam || 'Refund', refund: r })),
     ...obmenPeriod.map((o) => ({ id: o.id, kind: 'obmen' as const, sana: o.sana, summa: o.uzsSumma, label: `Obmen $${fmtUsd(o.usdSumma)} → so'm`, sub: `kurs ${fmtUsd(o.kurs)}`, obmen: o })),
     ...inkPeriod.map((i) => ({ id: i.id, kind: 'inkas' as const, sana: i.sana, summa: i.summa, label: i.turi === 'kassa' ? 'Kassa topshirish' : (i.airlineName || 'Inkassatsiya'), inkas: i })),
+    ...perevodPeriod.map((p) => ({ id: p.id, kind: 'perevod' as const, sana: p.sana, summa: p.summa, label: p.tur === 'aviakompaniya' ? (p.airlineName || 'Aviakompaniya') : PEREVOD_TUR_LABEL[p.tur], sub: `bank${p.izoh ? ` · ${p.izoh}` : ''}`, perevod: p })),
   ].sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a));
   const movShown = movements.filter((m) => {
     if (movFilter !== 'all' && m.kind !== movFilter) return false;
@@ -820,6 +951,7 @@ export default function FinansistPage() {
     refund: { label: 'Refund', color: T.orange, sign: -1 },
     obmen: { label: 'Obmen', color: T.teal, sign: 1 },
     inkas: { label: 'Inkas.', color: T.purple, sign: -1 },
+    perevod: { label: 'Perevod', color: T.indigo, sign: -1 },
   };
 
   // ===== Kassa kitobi (valyuta bo'yicha): kunlik ostatok boshi/oxiri =====
@@ -830,7 +962,7 @@ export default function FinansistPage() {
       e.kirim += kirim; e.chiqim += chiqim; dm.set(sana, e);
     };
     if (cur === 'uzs') {
-      allPayments.forEach((p) => { if (p.valyuta !== 'usd') bump(p.sana, p.summa, 0); });
+      allPayments.forEach((p) => { if (p.valyuta !== 'usd' && p.tolovTuri === 'naqd') bump(p.sana, p.summa, 0); });
       allObmen.forEach((o) => bump(o.sana, o.uzsSumma, 0)); // obmen -> so'm kirim
       allRasxod.forEach((r) => bump(r.sana, 0, r.summa));
       allRefund.forEach((r) => bump(r.sana, 0, r.summa));
@@ -891,7 +1023,7 @@ export default function FinansistPage() {
         {/* UZS ostatka oqimi */}
         <div style={{ ...card, borderTop: `2px solid ${uzsOxiri >= 0 ? T.green : T.red}`, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 14 }}>
-            <Wallet size={15} style={{ color: uzsOxiri >= 0 ? T.green : T.red }} /> UZS OSTATKA
+            <Wallet size={15} style={{ color: uzsOxiri >= 0 ? T.green : T.red }} /> NAQD KASSA (OSTATOK)
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
             <div>
@@ -905,11 +1037,36 @@ export default function FinansistPage() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, flexWrap: 'wrap', marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.line}` }}>
-            <span style={{ color: T.blue, fontWeight: 600 }}>+{formatMoney(uzsPrixod)}</span><span style={{ color: T.dim }}>prixod</span>
+            <span style={{ color: T.blue, fontWeight: 600 }}>+{formatMoney(naqd)}</span><span style={{ color: T.dim }}>naqd</span>
             {obmenUzs > 0 && (<><span style={{ color: T.dim }}>+</span><span style={{ color: T.teal, fontWeight: 600 }}>{formatMoney(obmenUzs)}</span><span style={{ color: T.dim }}>obmen</span></>)}
             <span style={{ color: T.dim }}>−</span><span style={{ color: T.red, fontWeight: 600 }}>{formatMoney(jamiRasxod)}</span><span style={{ color: T.dim }}>rasxod</span>
             <span style={{ color: T.dim }}>−</span><span style={{ color: T.orange, fontWeight: 600 }}>{formatMoney(jamiRefund)}</span><span style={{ color: T.dim }}>refund</span>
             <span style={{ color: T.dim }}>−</span><span style={{ color: T.purple, fontWeight: 600 }}>{formatMoney(jamiInk)}</span><span style={{ color: T.dim }}>inkas.</span>
+          </div>
+          <div style={{ color: T.dim, fontSize: 11, marginTop: 8 }}>
+            Karta/o&apos;tkazma bank hisobiga boradi (o&apos;ngdagi BANK kartasi).
+          </div>
+        </div>
+        {/* BANK (schet) ostatka oqimi — plastik+perech + naqddan topshirilgan − perevodlar */}
+        <div style={{ ...card, borderTop: `2px solid ${T.indigo}`, padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.mut, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', marginBottom: 14 }}>
+            <Landmark size={15} style={{ color: T.indigo }} /> BANK HISOBI (SCHET)
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
+            <div>
+              <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3 }}>KUN BOSHI</div>
+              <div style={{ color: T.mut, fontSize: 16, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatMoney(bankBoshi)}</div>
+            </div>
+            <ArrowRight size={18} style={{ color: T.dim, marginBottom: 4, flexShrink: 0 }} />
+            <div>
+              <div style={{ color: T.dim, fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3 }}>KUN OXIRI</div>
+              <div style={{ color: T.indigo, fontSize: 26, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px', lineHeight: 1 }}>{formatMoney(bankOxiri)}<span style={{ fontSize: 13, color: T.dim, fontWeight: 600 }}> so&apos;m</span></div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, flexWrap: 'wrap', marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.line}` }}>
+            <span style={{ color: T.blue, fontWeight: 600 }}>+{formatMoney(bankUzs)}</span><span style={{ color: T.dim }}>karta/o&apos;tkazma</span>
+            {jamiKassaTopshirish > 0 && (<><span style={{ color: T.dim }}>+</span><span style={{ color: T.green, fontWeight: 600 }}>{formatMoney(jamiKassaTopshirish)}</span><span style={{ color: T.dim }}>naqddan</span></>)}
+            {jamiPerevod > 0 && (<><span style={{ color: T.dim }}>−</span><span style={{ color: T.indigo, fontWeight: 600 }}>{formatMoney(jamiPerevod)}</span><span style={{ color: T.dim }}>perevod</span></>)}
           </div>
         </div>
         {/* USD ostatka oqimi */}
@@ -955,13 +1112,14 @@ export default function FinansistPage() {
             <div style={{ padding: 22 }}>
               <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ color: activeTab.color }}>{activeTab.icon}</span>
-                {tab === 'prixod' ? 'Yangi Prixod' : tab === 'rasxod' ? 'Rasxod (Chiqim)' : tab === 'refund' ? 'Refund (Pul qaytarish)' : tab === 'obmen' ? 'Obmen — USD ni som ga' : 'Inkassatsiya'}
+                {tab === 'prixod' ? 'Yangi Prixod' : tab === 'rasxod' ? 'Rasxod (Chiqim)' : tab === 'refund' ? 'Refund (Pul qaytarish)' : tab === 'obmen' ? 'Obmen — USD ni som ga' : tab === 'inkassatsiya' ? 'Inkassatsiya' : 'Perevod (bankdan chiqim)'}
               </h3>
               {tab === 'prixod' && <PaymentForm onSuccess={refreshAll} tickets={allTickets} payments={allPayments} />}
               {tab === 'rasxod' && <RasxodForm onSuccess={refreshAll} />}
               {tab === 'refund' && <RefundForm onSuccess={refreshAll} />}
               {tab === 'obmen' && <ObmenForm onSuccess={refreshAll} usdMavjud={usdOxiri} />}
               {tab === 'inkassatsiya' && <InkassatsiyaTab onSuccess={refreshAll} />}
+              {tab === 'perevod' && <PerevodTab onSuccess={refreshAll} />}
             </div>
           </div>
 
@@ -1109,6 +1267,7 @@ export default function FinansistPage() {
                   { k: 'refund' as const, l: 'Refund', c: T.orange },
                   { k: 'obmen' as const, l: 'Obmen', c: T.teal },
                   { k: 'inkas' as const, l: 'Inkas.', c: T.purple },
+                  { k: 'perevod' as const, l: 'Perevod', c: T.indigo },
                 ]).map((f) => {
                   const on = movFilter === f.k;
                   return <button key={f.k} onClick={() => setMovFilter(f.k)} style={{ padding: '5px 11px', borderRadius: 7, fontSize: 11, fontWeight: on ? 700 : 500, cursor: 'pointer', border: `1px solid ${on ? f.c : T.line}`, backgroundColor: on ? f.c + '18' : 'transparent', color: on ? f.c : T.dim }}>{f.l}</button>;
@@ -1139,6 +1298,7 @@ export default function FinansistPage() {
                           else if (m.kind === 'obmen') setEditObmen(m.obmen!);
                           else if (m.kind === 'refund') setEditRefund(m.refund!);
                           else if (m.kind === 'inkas') setEditInk(m.inkas!);
+                          else if (m.kind === 'perevod') setEditPerevod(m.perevod!);
                         };
                         return (
                           <tr key={m.id} onMouseEnter={() => setHover(m.id)} onMouseLeave={() => setHover(null)} style={{ borderBottom: `1px solid ${T.line}`, backgroundColor: hover === m.id ? '#1E2E2450' : 'transparent' }}>
@@ -1220,6 +1380,7 @@ export default function FinansistPage() {
       {editObmen && <ObmenEditModal obmen={editObmen} onClose={() => setEditObmen(null)} onSaved={refreshAll} />}
       {editRefund && <RefundEditModal refund={editRefund} onClose={() => setEditRefund(null)} onSaved={refreshAll} />}
       {editInk && <InkassatsiyaEditModal inkas={editInk} onClose={() => setEditInk(null)} onSaved={refreshAll} />}
+      {editPerevod && <PerevodEditModal perevod={editPerevod} onClose={() => setEditPerevod(null)} onSaved={refreshAll} />}
     </div>
   );
 }

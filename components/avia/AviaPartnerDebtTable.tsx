@@ -44,7 +44,7 @@ export default function AviaPartnerDebtTable({ debts }: Props) {
               <th style={thStyle}>Partnyor</th>
               <th style={thStyle}>Biletlar</th>
               <th style={thStyle}>Biletlar summasi</th>
-              <th style={thStyle}>Inkassatsiya</th>
+              <th style={thStyle}>To&apos;langan</th>
               <th style={thStyle}>Qarz</th>
             </tr>
           </thead>

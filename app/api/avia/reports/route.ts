@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings, getObmenlar } from '@/lib/avia-storage';
+import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings, getObmenlar, getPerevodlar } from '@/lib/avia-storage';
 import { todayStr } from '@/lib/utils';
 import { requireAuth } from '@/lib/api-auth';
 import type {
@@ -33,9 +33,10 @@ export async function GET(request: NextRequest) {
       getRasxodlar(),
       getRefundlar(),
       getObmenlar(),
+      getPerevodlar(),
     ]);
     // Quyidagilar sana/agent/aviakompaniya filtrlari bilan qayta tayinlanadi.
-    let [tickets, payments, inkassatsiya, rasxodlar, refundlar, obmenlar] = rest;
+    let [tickets, payments, inkassatsiya, rasxodlar, refundlar, obmenlar, perevodlar] = rest;
 
     // Apply date filters
     if (from) {
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       rasxodlar = rasxodlar.filter((r) => r.sana >= from);
       refundlar = refundlar.filter((r) => r.sana >= from);
       obmenlar = obmenlar.filter((o) => o.sana >= from);
+      perevodlar = perevodlar.filter((p) => p.sana >= from);
     }
     if (to) {
       tickets = tickets.filter((t) => t.sana <= to);
@@ -53,6 +55,7 @@ export async function GET(request: NextRequest) {
       rasxodlar = rasxodlar.filter((r) => r.sana <= to);
       refundlar = refundlar.filter((r) => r.sana <= to);
       obmenlar = obmenlar.filter((o) => o.sana <= to);
+      perevodlar = perevodlar.filter((p) => p.sana <= to);
     }
     if (agentFilter) {
       tickets = tickets.filter((t) => t.agent === agentFilter);
@@ -67,22 +70,33 @@ export async function GET(request: NextRequest) {
     const bugunBiletlar = tickets.filter((t) => t.sana === today).length;
     const jamiSotuv = tickets.reduce((s, t) => s + t.sotishNarxi, 0);
 
-    // Payment totals by type
-    const naqd = payments
-      .filter((p) => p.tolovTuri === 'naqd')
-      .reduce((s, p) => s + p.summa, 0);
-    const plastik = payments
-      .filter((p) => p.tolovTuri === 'plastik')
-      .reduce((s, p) => s + p.summa, 0);
-    const perechisleniya = payments
-      .filter((p) => p.tolovTuri === 'perechisleniya')
-      .reduce((s, p) => s + p.summa, 0);
-    const jamiPrixod = naqd + plastik + perechisleniya;
+    // Kassa modeli — Excel OSTATOK bilan bir xil (kassir hisobot varag'i):
+    //   NAQD kassa (stok): naqd + obmen(so'm) − inkassatsiya − rasxod − refund
+    //   USD kassa: USD to'lovlar − obmen(USD)
+    //   Plastik / perechisleniya BANKKA boradi — naqd kassaga KIRMAYDI (alohida).
+    // USD to'lovning so'm-ekvivalenti (p.summa) ham naqd kassaga qo'shilmaydi —
+    // dollar alohida yotadi va faqat obmen orqali so'mga aylanadi.
+    const uzsPay = payments.filter((p) => p.valyuta !== 'usd');
+    const byType = (tt: PaymentType) => uzsPay.filter((p) => p.tolovTuri === tt).reduce((s, p) => s + p.summa, 0);
+    const naqd = byType('naqd');
+    const plastik = byType('plastik');
+    const perechisleniya = byType('perechisleniya');
+    const bankUzs = plastik + perechisleniya; // karta + o'tkazma (bank) — naqd kassadan tashqarida
+    const obmenUzs = obmenlar.reduce((s, o) => s + o.uzsSumma, 0); // obmen so'mga kirim
+    const obmenUsd = obmenlar.reduce((s, o) => s + o.usdSumma, 0); // obmen USD chiqim
+    const usdKirim = payments.reduce((s, p) => s + (p.valyuta === 'usd' ? (p.summAsl || 0) : 0), 0);
     const jamiInkassatsiya = inkassatsiya.reduce((s, i) => s + i.summa, 0);
     const jamiRasxod = rasxodlar.reduce((s, r) => s + r.summa, 0);
     const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
-    const obmenUzs = obmenlar.reduce((s, o) => s + o.uzsSumma, 0); // obmen: USD → so'm kirim
-    const stok = jamiPrixod + obmenUzs - jamiInkassatsiya - jamiRasxod - jamiRefund;
+    const stok = naqd + obmenUzs - jamiInkassatsiya - jamiRasxod - jamiRefund;
+    const usdKassa = usdKirim - obmenUsd; // qolgan dollar
+
+    // Bank hisobi (schet): plastik + perechisleniya bankka to'g'ridan-to'g'ri tushadi,
+    // naqddan "Kassa topshirish" (inkassatsiya turi='kassa') bankka o'tkaziladi,
+    // perevodlar esa bankdan chiqadi (aviaga/nalog/ish haqi/boshqa).
+    const jamiKassaTopshirish = inkassatsiya.filter((i) => i.turi === 'kassa').reduce((s, i) => s + i.summa, 0);
+    const jamiPerevod = perevodlar.reduce((s, p) => s + p.summa, 0);
+    const bankBalans = bankUzs + jamiKassaTopshirish - jamiPerevod;
 
     // Foyda = (sotish - tarif) + (tarif * komissiya%) + qo'shimcha foyda — har bilet uchun
     const sofFoyda = tickets.reduce((s, t) => {
@@ -107,6 +121,13 @@ export async function GET(request: NextRequest) {
       const existing = airlineMap.get(i.airline) || { biletlarSumma: 0, inkassatsiya: 0, biletlar: 0 };
       existing.inkassatsiya += i.summa;
       airlineMap.set(i.airline, existing);
+    }
+    // Aviakompaniyaga perevod ham o'sha kompaniya qarzini kamaytiradi (inkassatsiya kabi).
+    for (const p of perevodlar) {
+      if (p.tur !== 'aviakompaniya' || !p.airline) continue;
+      const existing = airlineMap.get(p.airline) || { biletlarSumma: 0, inkassatsiya: 0, biletlar: 0 };
+      existing.inkassatsiya += p.summa;
+      airlineMap.set(p.airline, existing);
     }
 
     const partnerDebts: PartnerDebt[] = [];
@@ -209,6 +230,10 @@ export async function GET(request: NextRequest) {
       bugunBiletlar,
       jamiSotuv,
       stok,
+      usdKassa,
+      bankUzs,
+      bankBalans,
+      jamiPerevod,
       jamiQarzdorlik,
       sofFoyda,
       qoshimchaFoyda: jamiQoshimchaFoyda,

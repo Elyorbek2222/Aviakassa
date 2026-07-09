@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { BarChart3, Plane, TrendingUp, Wallet, AlertTriangle, DollarSign, Sparkles } from 'lucide-react';
+import { BarChart3, Plane, TrendingUp, Wallet, AlertTriangle, DollarSign, Sparkles, Building2 } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
 import type { AviaKPI, AviaSalesPoint, AirlineStat, DebtRecord, PartnerDebt } from '@/types/avia';
 import {
@@ -235,11 +235,25 @@ export default function AdminDashboard() {
           sub="Umumiy savdo"
         />
         <KPICard
-          label="Stok (Kassa)"
+          label="Naqd Kassa (Stok)"
           value={formatMoney(kpi.stok)}
           icon={<Wallet size={20} />}
           color="#F5A623"
-          sub="Kassadagi pul"
+          sub="Naqd + obmen − chiqim (OSTATOK)"
+        />
+        <KPICard
+          label="USD Kassa"
+          value={`$${(kpi.usdKassa ?? 0).toLocaleString('en-US')}`}
+          icon={<DollarSign size={20} />}
+          color="#2CA5E0"
+          sub="Qolgan dollar (obmen chiqimi bilan)"
+        />
+        <KPICard
+          label="Bank hisobi (schet)"
+          value={formatMoney(kpi.bankBalans ?? 0)}
+          icon={<Building2 size={20} />}
+          color="#6366F1"
+          sub="Karta+o'tkazma+naqddan − perevodlar"
         />
         <KPICard
           label="Sof Foyda"
@@ -413,7 +427,7 @@ export default function AdminDashboard() {
                 <th style={tableHeaderStyle}>Aviakompaniya</th>
                 <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Biletlar</th>
                 <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Tarif Summa</th>
-                <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Inkassatsiya</th>
+                <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>To&apos;langan</th>
                 <th style={{ ...tableHeaderStyle, textAlign: 'right' }}>Qarz</th>
               </tr>
             </thead>

@@ -15,6 +15,7 @@ const ENTITY_LABELS: Record<AuditEntity, string> = {
   refund: 'Refund',
   obmen: 'Obmen',
   inkassatsiya: 'Inkassatsiya',
+  perevod: 'Perevod',
   settings: 'Sozlamalar',
   otchot: 'Otchot',
   prixot: 'Prixot',

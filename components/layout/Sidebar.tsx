@@ -112,6 +112,8 @@ export default function Sidebar({ open = false, onClose }: { open?: boolean; onC
   const [logoutHover, setLogoutHover] = useState(false);
   // Joriy URL query'si (masalan ?view=hisobot) — /kassir'ning ikki linkini ajratish uchun.
   const [search, setSearch] = useState('');
+  // ponytail: URL client'da o'qiladi (hydration mos qolishi uchun) — navigatsiyada yangilanadi.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setSearch(typeof window !== 'undefined' ? window.location.search : ''); }, [pathname]);
 
   useEffect(() => {

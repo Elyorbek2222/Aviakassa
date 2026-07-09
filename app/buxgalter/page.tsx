@@ -4,7 +4,7 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import { Landmark } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
-import { AIRLINE_LABELS, type AirlineKey } from '@/types/avia';
+import { AIRLINE_LABELS, PEREVOD_TUR_LABEL, type AirlineKey, type Perevod } from '@/types/avia';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -111,13 +111,16 @@ function InkassatsiyaForm({ onSuccess }: { onSuccess: () => void }) {
 export default function BuxgalterPage() {
   const { data: reportsData, mutate: mutateReports, isLoading: reportsLoading, error: reportsError } = useSWR('/api/avia/reports', fetcher, { refreshInterval: 60000 });
   const { data: inkData, mutate: mutateInk, isLoading: inkLoading } = useSWR('/api/avia/inkassatsiya', fetcher, { refreshInterval: 60000 });
+  const { data: perevodData, mutate: mutatePerevod } = useSWR('/api/avia/perevod', fetcher, { refreshInterval: 60000 });
 
   const partnerDebts = reportsData?.partnerDebts || [];
   const inkassatsiya = inkData?.inkassatsiya || [];
+  const perevodlar = (perevodData?.perevodlar || []) as Perevod[];
 
   const handleSuccess = () => {
     mutateReports();
     mutateInk();
+    mutatePerevod();
   };
 
   if (reportsLoading || inkLoading) {
@@ -159,7 +162,7 @@ export default function BuxgalterPage() {
                   <tr style={{ borderBottom: '1px solid #1E2E24' }}>
                     <th style={{ padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Airline</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Tarif</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Inkassatsiya</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>To&apos;langan</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Qarz</th>
                   </tr>
                 </thead>
@@ -202,6 +205,39 @@ export default function BuxgalterPage() {
                         <td style={{ padding: '8px 10px', color: '#8A9A8F', fontSize: 13 }}>{i.sana}</td>
                         <td style={{ padding: '8px 10px', color: '#fff', fontSize: 13 }}>{i.airlineName}</td>
                         <td style={{ padding: '8px 10px', color: '#9B59B6', fontSize: 13, textAlign: 'right', fontWeight: 600 }}>{formatMoney(i.summa)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Perevodlar Tarixi (bankdan chiqim: avia/nalog/ish haqi/boshqa) */}
+          <div style={{ backgroundColor: '#141F19', border: '1px solid #1E2E24', borderRadius: 12, padding: 20 }}>
+            <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+              Perevodlar Tarixi
+            </h3>
+            {perevodlar.length === 0 ? (
+              <div style={{ color: '#4A5C50', textAlign: 'center', padding: 20, fontSize: 14 }}>
+                Hozircha perevod yo&apos;q
+              </div>
+            ) : (
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #1E2E24' }}>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Sana</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Kimga / nima</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', color: '#8A9A8F', fontSize: 12, fontWeight: 500 }}>Summa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perevodlar.slice().reverse().slice(0, 15).map((p) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid #1E2E24' }}>
+                        <td style={{ padding: '8px 10px', color: '#8A9A8F', fontSize: 13 }}>{p.sana}</td>
+                        <td style={{ padding: '8px 10px', color: '#fff', fontSize: 13 }}>{p.tur === 'aviakompaniya' ? (p.airlineName || 'Aviakompaniya') : PEREVOD_TUR_LABEL[p.tur]}</td>
+                        <td style={{ padding: '8px 10px', color: '#6366F1', fontSize: 13, textAlign: 'right', fontWeight: 600 }}>{formatMoney(p.summa)}</td>
                       </tr>
                     ))}
                   </tbody>

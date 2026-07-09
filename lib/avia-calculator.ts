@@ -44,10 +44,13 @@ export function calculateKPI(
   const bugunBiletlar = tickets.filter((t) => t.sana === today).length;
   const jamiSotuv = tickets.reduce((sum, t) => sum + t.sotishNarxi, 0);
 
-  // stok = sum(payments) - sum(inkassatsiya)
-  const jamiPayments = payments.reduce((sum, p) => sum + p.summa, 0);
+  // NAQD kassa (Excel OSTATOK): faqat naqd − inkassatsiya. Plastik/o'tkazma bankka.
+  // USD alohida dollar kassaga. (Obmen bu funksiyaga uzatilmaydi — asosiy hisob reports route'da.)
+  const naqd = payments.reduce((sum, p) => sum + (p.valyuta !== 'usd' && p.tolovTuri === 'naqd' ? p.summa : 0), 0);
+  const bankUzs = payments.reduce((sum, p) => sum + (p.valyuta !== 'usd' && p.tolovTuri !== 'naqd' ? p.summa : 0), 0);
+  const usdKassa = payments.reduce((sum, p) => sum + (p.valyuta === 'usd' ? (p.summAsl || 0) : 0), 0);
   const jamiInkassatsiya = inkassatsiya.reduce((sum, i) => sum + i.summa, 0);
-  const stok = jamiPayments - jamiInkassatsiya;
+  const stok = naqd - jamiInkassatsiya;
 
   // Partner debt: sum of ticket tarifs - inkassatsiya per airline
   const partnerDebts = calculatePartnerDebts(tickets, inkassatsiya);
@@ -68,6 +71,11 @@ export function calculateKPI(
     bugunBiletlar,
     jamiSotuv,
     stok,
+    usdKassa,
+    bankUzs,
+    // Bu funksiyaga perevod/obmen uzatilmaydi — asosiy bank hisobi reports route'da.
+    bankBalans: bankUzs,
+    jamiPerevod: 0,
     jamiQarzdorlik,
     sofFoyda,
     qoshimchaFoyda,

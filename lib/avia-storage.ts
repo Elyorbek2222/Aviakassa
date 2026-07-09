@@ -11,6 +11,7 @@ import type {
   OtchotListItem,
   OylikXisobotRow,
   Obmen,
+  Perevod,
   PrixotDoc,
   PrixotYozuv,
   TurizmDoc,
@@ -164,6 +165,27 @@ export async function addRefund(item: Refund): Promise<Refund[]> {
 // Mavjud refundni yangilash — id bo'yicha upsert
 export async function updateRefund(item: Refund): Promise<void> {
   await upsertDocs('refund', [item]);
+}
+
+// ===== Perevod (bank hisobidan chiqim) =====
+
+export async function getPerevodlar(): Promise<Perevod[]> {
+  // Jadval hali yaratilmagan bo'lsa ham sahifa buzilmasin (obmen kabi)
+  try {
+    return await selectAll<Perevod>('perevod');
+  } catch {
+    return [];
+  }
+}
+
+export async function addPerevod(item: Perevod): Promise<Perevod[]> {
+  await upsertDocs('perevod', [item]);
+  return getPerevodlar();
+}
+
+// Mavjud perevodni yangilash — id bo'yicha upsert
+export async function updatePerevod(item: Perevod): Promise<void> {
+  await upsertDocs('perevod', [item]);
 }
 
 // ===== Oylik sverka (otchot) =====
