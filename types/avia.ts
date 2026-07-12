@@ -305,6 +305,10 @@ export interface TurizmYozuv {
   rId: number; // U-ON ichki request ID (zayavka nomeridan aniqlanadi)
   tur: TurizmTur; // prixot | rasxod
   summa: number; // tanlangan valyutadagi summa
+  kurs?: number; // valyuta so'mdan boshqa bo'lsa — kurs (U-ON koef)
+  summaUzs?: number; // so'm ekvivalenti (summa × kurs) — chek/hisobot uchun
+  mijoz?: string; // zayavka mijozi (chek uchun, lookup'dan)
+  xizmat?: string; // zayavka xizmat(lar)i (chek uchun, lookup'dan)
   valyuta?: string; // ko'rsatish uchun valyuta belgisi (masalan 'UZS')
   currencyId?: number; // U-ON currency id
   partnerId?: number; // U-ON supplier_id (asosan rasxod uchun)

@@ -52,6 +52,13 @@ export async function POST(request: NextRequest) {
     const valyuta = toText(body.valyuta) || undefined;
     const partnerNomi = toText(body.partnerNomi) || undefined;
     const izoh = toText(body.izoh) || undefined;
+    // Kurs: valyuta so'mdan boshqa bo'lsa kiritiladi. So'm ekvivalenti = summa × kurs
+    // (kurs yo'q bo'lsa summaning o'zi — so'm deb qabul qilinadi).
+    const kursNum = toNumber(body.kurs);
+    const kurs = kursNum && kursNum > 0 ? kursNum : undefined;
+    const summaUzs = kurs ? Math.round(summa * kurs) : summa;
+    const mijoz = toText(body.mijoz) || undefined;
+    const xizmat = toText(body.xizmat) || undefined;
 
     // 1) Zayavka U-ON'da mavjudmi?
     let rId: number | null;
@@ -70,6 +77,7 @@ export async function POST(request: NextRequest) {
         isPrixot: tur === 'prixot',
         price: summa,
         currencyId,
+        koef: kurs,
         supplierId: partnerId,
         cashId,
         formId,
@@ -90,6 +98,10 @@ export async function POST(request: NextRequest) {
       rId,
       tur,
       summa,
+      kurs,
+      summaUzs,
+      mijoz,
+      xizmat,
       valyuta,
       currencyId,
       partnerId,

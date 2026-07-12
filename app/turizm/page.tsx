@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { Globe, Plus, Calendar, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Globe, Plus, Calendar, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Printer } from 'lucide-react';
 import { TURIZM_TUR_LABEL, type TurizmYozuv, type TurizmTur } from '@/types/avia';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -23,6 +23,11 @@ const C = {
 interface Ref { id: number; name: string }
 interface RefsResp { error?: string; suppliers: Ref[]; currencies: Ref[]; cashboxes: Ref[]; forms: Ref[] }
 interface ListResp { oy: string; yozuvlar: TurizmYozuv[] }
+interface ZService { name: string; price: number }
+interface ZInfo { rId: number; nomer: string; mijoz: string; manager: string; status: string; xizmatlar: ZService[]; sell: number; clientPaid: number; clientDebt: number }
+
+// So'm valyutasi (kurs shart emas)
+const isSom = (name?: string) => !name || /сум|so'?m|uzs/i.test(name);
 
 export default function TurizmPage() {
   const { data: auth } = useSWR<{ user?: { role?: string } }>('/api/avia/auth', fetcher, { revalidateOnFocus: false });
@@ -43,9 +48,35 @@ export default function TurizmPage() {
   const { data: list, mutate } = useSWR<ListResp>(`/api/avia/turizm?oy=${activeOy}`, fetcher, { revalidateOnFocus: false });
   const rows = useMemo(() => list?.yozuvlar ?? [], [list]);
 
-  const [f, setF] = useState({ sana: todayISO(), zayavka: '', tur: 'prixot' as TurizmTur, summa: '', currencyId: '', partnerId: '', cashId: '', formId: '', izoh: '' });
+  const [f, setF] = useState({ sana: todayISO(), zayavka: '', tur: 'prixot' as TurizmTur, summa: '', kurs: '', currencyId: '', partnerId: '', cashId: '', formId: '', izoh: '' });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [saved, setSaved] = useState<TurizmYozuv | null>(null); // oxirgi saqlangan (chek uchun)
+
+  // Zayavka lookup — mijoz + uslugalarni ko'rsatish
+  const [zInfo, setZInfo] = useState<ZInfo | null>(null);
+  const [zLoading, setZLoading] = useState(false);
+  const [zErr, setZErr] = useState('');
+
+  const lookupZayavka = async () => {
+    const nomer = f.zayavka.trim();
+    setZErr('');
+    if (!nomer) { setZInfo(null); return; }
+    setZLoading(true);
+    try {
+      const r = await fetch(`/api/avia/turizm/zayavka?nomer=${encodeURIComponent(nomer)}`);
+      const d = await r.json();
+      if (!r.ok) { setZInfo(null); setZErr(d.error || 'Topilmadi'); return; }
+      setZInfo(d.info as ZInfo);
+    } catch { setZErr("Serverga ulanib bo'lmadi"); }
+    finally { setZLoading(false); }
+  };
+
+  const curName = refs?.currencies.find((c) => String(c.id) === f.currencyId)?.name;
+  const needKurs = !isSom(curName);
+  const summaNum = Number(f.summa.replace(/\s/g, '')) || 0;
+  const kursNum = Number(f.kurs) || 0;
+  const uzsPreview = needKurs ? (kursNum ? Math.round(summaNum * kursNum) : 0) : summaNum;
 
   // Refs kelganda valyuta/kassa uchun birinchi variantni default qo'yamiz
   useEffect(() => {
@@ -66,16 +97,19 @@ export default function TurizmPage() {
   const submit = async () => {
     setMsg(null);
     if (!f.zayavka.trim()) { setMsg({ ok: false, text: 'Zayavka nomerini kiriting' }); return; }
-    const summaNum = Number(f.summa.replace(/\s/g, ''));
     if (!summaNum || summaNum <= 0) { setMsg({ ok: false, text: "Summa 0 dan katta bo'lishi kerak" }); return; }
+    if (needKurs && kursNum <= 0) { setMsg({ ok: false, text: 'Valyuta so’mdan boshqa — kursni kiriting' }); return; }
     setBusy(true);
     try {
       const partner = refs?.suppliers.find((s) => String(s.id) === f.partnerId);
-      const valyuta = refs?.currencies.find((c) => String(c.id) === f.currencyId)?.name;
+      const valyuta = curName;
+      const xizmat = zInfo?.xizmatlar.map((x) => x.name).filter(Boolean).join(', ') || undefined;
       const res = await fetch('/api/avia/turizm', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sana: f.sana, zayavka: f.zayavka.trim(), tur: f.tur, summa: summaNum,
+          kurs: needKurs && kursNum ? kursNum : undefined,
+          mijoz: zInfo?.mijoz, xizmat,
           currencyId: f.currencyId || undefined, valyuta,
           partnerId: f.partnerId || undefined, partnerNomi: partner?.name,
           cashId: f.cashId || undefined, formId: f.formId || undefined,
@@ -84,8 +118,10 @@ export default function TurizmPage() {
       });
       const data = await res.json();
       if (!res.ok) { setMsg({ ok: false, text: data.error || 'Xatolik' }); return; }
+      setSaved(data.yozuv as TurizmYozuv);
       setMsg({ ok: true, text: `Saqlandi va U-ON'ga yuborildi (zayavka ${f.zayavka.trim()})` });
-      setF((p) => ({ ...p, zayavka: '', summa: '', izoh: '' }));
+      setF((p) => ({ ...p, zayavka: '', summa: '', kurs: '', izoh: '' }));
+      setZInfo(null); setZErr('');
       await mutate();
     } catch {
       setMsg({ ok: false, text: "Serverga ulanib bo'lmadi" });
@@ -137,7 +173,11 @@ export default function TurizmPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
           <div>
             <label style={lbl}>Zayavka nomeri *</label>
-            <input value={f.zayavka} onChange={(e) => setF({ ...f, zayavka: e.target.value })} placeholder="masalan 12345" style={{ ...inp, fontFamily: 'var(--font-geist-mono)' }} />
+            <input value={f.zayavka}
+              onChange={(e) => { setF({ ...f, zayavka: e.target.value }); if (zInfo || zErr) { setZInfo(null); setZErr(''); } }}
+              onBlur={lookupZayavka}
+              onKeyDown={(e) => { if (e.key === 'Enter') lookupZayavka(); }}
+              placeholder="masalan 12345" style={{ ...inp, fontFamily: 'var(--font-geist-mono)' }} />
           </div>
           <div>
             <label style={lbl}>Summa *</label>
@@ -150,6 +190,13 @@ export default function TurizmPage() {
               {(refs?.currencies ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
+          {needKurs && (
+            <div>
+              <label style={lbl}>Kurs * <span style={{ color: C.dim, fontWeight: 400 }}>(so‘mga)</span></label>
+              <input inputMode="numeric" value={f.kurs} onChange={(e) => setF({ ...f, kurs: e.target.value })} placeholder="12800" style={{ ...inp, textAlign: 'right', fontFamily: 'var(--font-geist-mono)' }} />
+              {uzsPreview > 0 && <div style={{ color: C.teal, fontSize: 11.5, marginTop: 4 }}>= {fmt(uzsPreview)} so‘m</div>}
+            </div>
+          )}
           <div>
             <label style={lbl}>Sana</label>
             <input type="date" value={f.sana} onChange={(e) => setF({ ...f, sana: e.target.value })} style={inp} />
@@ -181,6 +228,35 @@ export default function TurizmPage() {
           </div>
         </div>
 
+        {/* Zayavka ma'lumoti — mijoz + uslugalar */}
+        {(zLoading || zErr || zInfo) && (
+          <div style={{ marginTop: 12, backgroundColor: '#0A0F0D', border: `1px solid ${zErr ? C.orange + '55' : C.line}`, borderRadius: 10, padding: '11px 13px' }}>
+            {zLoading && <span style={{ color: C.mut, fontSize: 12.5 }}>Zayavka tekshirilmoqda…</span>}
+            {zErr && !zLoading && <span style={{ color: C.orange, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {zErr}</span>}
+            {zInfo && !zLoading && (
+              <div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: 12.5, marginBottom: zInfo.xizmatlar.length ? 8 : 0 }}>
+                  <span style={{ color: C.mut }}>Mijoz: <b style={{ color: '#fff' }}>{zInfo.mijoz || '—'}</b></span>
+                  {zInfo.status && <span style={{ color: C.mut }}>Holat: <b style={{ color: C.teal }}>{zInfo.status}</b></span>}
+                  {zInfo.sell > 0 && <span style={{ color: C.mut }}>Sotuv: <b style={{ color: '#fff' }}>{fmt(zInfo.sell)}</b></span>}
+                  {zInfo.clientDebt > 0 && <span style={{ color: C.mut }}>Mijoz qarzi: <b style={{ color: C.orange }}>{fmt(zInfo.clientDebt)}</b></span>}
+                </div>
+                {zInfo.xizmatlar.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {zInfo.xizmatlar.map((x, i) => (
+                      <span key={i} style={{ fontSize: 11.5, color: '#cfe', backgroundColor: C.teal + '14', border: `1px solid ${C.teal}30`, borderRadius: 6, padding: '3px 8px' }}>
+                        {x.name}{x.price > 0 ? ` · ${fmt(x.price)}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11.5, color: C.dim }}>Uslugalar ko‘rsatilmagan</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
           <button onClick={submit} disabled={busy}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px', borderRadius: 9, border: `1px solid ${C.teal}`, backgroundColor: C.teal + '18', color: C.teal, fontSize: 14, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
@@ -190,6 +266,12 @@ export default function TurizmPage() {
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: msg.ok ? C.green : C.red }}>
               {msg.ok ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />} {msg.text}
             </span>
+          )}
+          {saved && saved.tur === 'prixot' && (
+            <button onClick={() => printChek(saved)}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 9, border: `1px solid ${C.green}`, backgroundColor: C.green + '14', color: C.green, fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+              <Printer size={15} /> Chek chiqarish
+            </button>
           )}
         </div>
       </div>
@@ -228,6 +310,7 @@ export default function TurizmPage() {
                 <th style={th}>Partnyor</th>
                 <th style={th}>Izoh</th>
                 <th style={th}>Kim</th>
+                <th style={{ ...th, textAlign: 'center' }}>Chek</th>
               </tr>
             </thead>
             <tbody>
@@ -236,14 +319,25 @@ export default function TurizmPage() {
                   <td style={{ ...td, color: C.mut }}>{y.sana}</td>
                   <td style={{ ...td, fontFamily: 'var(--font-geist-mono)', color: '#fff' }}>{y.zayavka}</td>
                   <td style={{ ...td, color: y.tur === 'prixot' ? C.green : C.red }}>{TURIZM_TUR_LABEL[y.tur]}</td>
-                  <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-geist-mono)', color: '#e6f0ea' }}>{fmt(y.summa)}{y.valyuta ? ` ${y.valyuta}` : ''}</td>
+                  <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-geist-mono)', color: '#e6f0ea' }}>
+                    {fmt(y.summa)}{y.valyuta ? ` ${y.valyuta}` : ''}
+                    {y.kurs ? <div style={{ color: C.dim, fontSize: 10.5 }}>×{fmt(y.kurs)} = {fmt(y.summaUzs ?? y.summa)} so‘m</div> : null}
+                  </td>
                   <td style={{ ...td, whiteSpace: 'normal', color: C.mut }}>{y.partnerNomi || '—'}</td>
                   <td style={{ ...td, whiteSpace: 'normal', color: C.dim }}>{y.izoh || ''}</td>
                   <td style={{ ...td, color: C.dim }}>{y.yaratdi}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    {y.tur === 'prixot' && (
+                      <button onClick={() => printChek(y)} title="Kassa cheki"
+                        style={{ display: 'inline-flex', padding: 5, borderRadius: 6, border: `1px solid ${C.line}`, backgroundColor: 'transparent', color: C.teal, cursor: 'pointer' }}>
+                        <Printer size={14} />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: C.dim, padding: 30 }}>{list ? "Yozuv yo'q" : 'Yuklanmoqda…'}</td></tr>
+                <tr><td colSpan={8} style={{ ...td, textAlign: 'center', color: C.dim, padding: 30 }}>{list ? "Yozuv yo'q" : 'Yuklanmoqda…'}</td></tr>
               )}
             </tbody>
           </table>
@@ -254,6 +348,50 @@ export default function TurizmPage() {
       </div>
     </div>
   );
+}
+
+// Mijozga beriladigan kassa cheki (prixot) — alohida oynada chop etiladi.
+// Ma'lumot: zayavka mijozi/uslugasi (lookup'dan), summa + kurs + so'm ekvivalenti.
+function printChek(y: TurizmYozuv) {
+  const esc = (s: unknown) => String(s ?? '').replace(/[<>&]/g, (c) => (({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }) as Record<string, string>)[c]);
+  const val = esc(y.valyuta || "so'm");
+  const uzs = y.summaUzs ?? y.summa;
+  const chekNo = esc(y.uonPaymentId || y.id.replace(/^TUR-/, '').slice(0, 8).toUpperCase());
+  const row = (k: string, v: string) => `<tr><td class="k">${k}</td><td class="v">${v}</td></tr>`;
+  const html = `<!doctype html><html lang="uz"><head><meta charset="utf-8"><title>Chek ${chekNo}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Courier New',monospace;color:#000;background:#fff;padding:10px;width:300px}
+  .c{text-align:center}
+  h1{font-size:19px;letter-spacing:1px}
+  .sub{font-size:11px;margin-bottom:8px}
+  hr{border:none;border-top:1px dashed #000;margin:8px 0}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  td{padding:2px 0;vertical-align:top}
+  td.k{color:#333;white-space:nowrap;padding-right:8px}
+  td.v{text-align:right;font-weight:bold}
+  .jami td{font-size:15px;padding-top:4px}
+  .sign{font-size:12px;margin-top:14px}
+  .foot{font-size:11px;margin-top:12px}
+  @media print{body{width:auto;padding:0}@page{margin:6mm}}
+</style></head><body>
+  <div class="c"><h1>SEM TRAVEL</h1><div class="sub">Turizm — kassa cheki (prixot)</div></div>
+  <hr>
+  <table>${row('Chek №', chekNo)}${row('Sana', esc(y.sana))}</table>
+  <hr>
+  <table>${row('Mijoz', esc(y.mijoz || '—'))}${row('Zayavka', esc(y.zayavka))}${y.xizmat ? row('Xizmat', esc(y.xizmat)) : ''}</table>
+  <hr>
+  <table>${row('Summa', esc(fmt(y.summa)) + ' ' + val)}${y.kurs ? row('Kurs', '× ' + esc(fmt(y.kurs))) : ''}<tr class="jami"><td class="k">JAMI</td><td class="v">${esc(fmt(uzs))} so'm</td></tr></table>
+  <hr>
+  <div class="sign">Qabul qildi: <b>${esc(y.yaratdi)}</b></div>
+  <div class="sign">Imzo: ______________________</div>
+  <div class="c foot">Rahmat! Xayrli sayohat.</div>
+  <script>window.onload=function(){window.print()}</script>
+</body></html>`;
+  const w = window.open('', '_blank', 'width=360,height=640');
+  if (!w) { alert("Chop oynasi ochilmadi — brauzer popup'ni bloklamasin."); return; }
+  w.document.write(html);
+  w.document.close();
 }
 
 function Kpi({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {

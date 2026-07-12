@@ -139,6 +139,61 @@ export async function resolveZayavka(nomer: string | number): Promise<number | n
   return Number.isFinite(id) && id > 0 ? id : n;
 }
 
+// ===== Zayavka ma'lumoti (mijoz + uslugalar) — forma lookup uchun =====
+// Zayavka nomeri kiritilganda sardorga mijoz F.I.Sh + uslugalar + summani ko'rsatadi
+// (nima uchun to'lov yozayotganini tekshirish). `request/{id}` javobida services
+// inline keladi. Topilmasa null.
+
+export interface ZayavkaService { name: string; price: number }
+export interface ZayavkaInfo {
+  rId: number;
+  nomer: string;
+  mijoz: string;
+  manager: string;
+  status: string;
+  xizmatlar: ZayavkaService[];
+  sell: number;
+  clientPaid: number;
+  clientDebt: number;
+}
+
+// Uslugalar U-ON'da request ichida inline — kalit account/versiyaga qarab har xil
+// bo'lishi mumkin, shuning uchun himoyalangan parsing (topilmasa bo'sh ro'yxat).
+function parseServices(r: Record<string, unknown>): ZayavkaService[] {
+  const raw = r.services ?? r.service ?? r.tovar ?? r.nomenclature;
+  const rows = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
+  return rows
+    .map((s) => {
+      const o = (s && typeof s === 'object' ? s : {}) as Record<string, unknown>;
+      const name = String(o.name ?? o.title ?? o.nomenclature ?? o.service_name ?? o.type_name ?? '').trim();
+      const price = num(o.price ?? o.summ ?? o.sum ?? o.cost ?? o.calc_price);
+      return { name: name || 'Xizmat', price };
+    })
+    .filter((x) => x.name !== 'Xizmat' || x.price > 0);
+}
+
+export async function getZayavkaInfo(nomer: string | number): Promise<ZayavkaInfo | null> {
+  const n = Number(String(nomer).trim());
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const { httpOk, data } = await uonGet(`request/${n}`);
+  if (!httpOk) return null;
+  const rows = firstArray(data);
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  const z = mapZayavka(r);
+  return {
+    rId: z.id || n,
+    nomer: String(n),
+    mijoz: z.client,
+    manager: z.manager,
+    status: z.status,
+    xizmatlar: parseServices(r),
+    sell: z.sell,
+    clientPaid: z.clientPaid,
+    clientDebt: z.clientDebt,
+  };
+}
+
 // ===== To'lov yaratish (prixot / rasxod) =====
 
 export interface CreatePaymentInput {
@@ -146,6 +201,7 @@ export interface CreatePaymentInput {
   isPrixot: boolean;      // true=prixot(cio_id 1), false=rasxod(cio_id 2)
   price: number;          // summa (tanlangan valyutada)
   currencyId?: number;
+  koef?: number;          // kurs (valyuta → so'm); U-ON: price × koef = so'm
   supplierId?: number;    // partner (bo'lsa type_id=2, aks holda 1)
   cashId?: number;
   formId?: number;
@@ -162,6 +218,7 @@ export async function createPayment(
     type_id: input.supplierId ? 2 : 1,                 // 2=partner bilan, 1=mijoz bilan
     price: input.price,
     currency_id: input.currencyId,
+    koef: input.koef,                                  // kurs (valyuta → so'm)
     supplier_id: input.supplierId,
     cash_id: input.cashId,
     form_id: input.formId,
