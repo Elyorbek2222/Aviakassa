@@ -106,16 +106,17 @@ export async function getSuppliers(): Promise<UonRef[]> {
   return toRefs(all, ['name', 'name_official', 'title']);
 }
 
-// SEM Travel faqat UZS (so'm) va USD (dollar) bilan ishlaydi — U-ON'dagi o'nlab
-// valyutalar dropdown'ni to'ldirmasin. So'm birinchi (forma default'i).
+// SEM Travel faqat 2 valyuta: Узбекский сум (UZS) va Доллар США (USD). U-ON'da
+// o'nlab valyuta bor — boshqa "dollar"lar (avstraliya/kanada/singapur...) ham
+// chiqib qolmasin uchun USD ANIQ belgilanadi ("США"/"USD"/id=2), so'm birinchi.
 export async function getCurrencies(): Promise<UonRef[]> {
   const { data } = await uonGet('currency');
   const all = toRefs(firstArray(data), ['name', 'title', 'code', 'short_name']);
-  const isSomN = (n: string) => /сум|so'?m|\buzs\b/i.test(n);
-  const isUsdN = (n: string) => /доллар|dollar|\busd\b/i.test(n);
-  const matched = all.filter((c) => isSomN(c.name) || isUsdN(c.name));
-  const ordered = [...matched.filter((c) => isSomN(c.name)), ...matched.filter((c) => isUsdN(c.name))];
-  return ordered.length ? ordered : all; // mos kelmasa — hammasini (dropdown bo'sh qolmasin)
+  const uzs = all.find((c) => c.id === 18 || /\buzs\b|узбек|сум/i.test(c.name));
+  const usd = all.find((c) => c.id === 2 || /\busd\b|сша/i.test(c.name))
+           || all.find((c) => /доллар|dollar/i.test(c.name)); // zaxira: aniq topilmasa — birinchi dollar
+  const only = [uzs, usd].filter(Boolean) as UonRef[];
+  return only.length ? only : all; // hech biri topilmasa — hammasi (dropdown bo'sh qolmasin)
 }
 
 export async function getCashboxes(): Promise<UonRef[]> {
@@ -224,7 +225,8 @@ export async function createPayment(
     cio_id: input.isPrixot ? 1 : 2,                    // 1=приход, 2=расход
     type_id: input.supplierId ? 2 : 1,                 // 2=partner bilan, 1=mijoz bilan
     price: input.price,
-    currency_id: input.currencyId,
+    c_id: input.currencyId,                            // valyuta — U-ON doc: `c_id` (currency_id EMAS!)
+    currency_id: input.currencyId,                     // ehtiyot uchun (U-ON noto'g'ri nomni e'tiborsiz qoldiradi)
     koef: input.koef,                                  // kurs (valyuta → so'm)
     supplier_id: input.supplierId,
     cash_id: input.cashId,
