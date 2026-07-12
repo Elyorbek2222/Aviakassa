@@ -19,6 +19,14 @@ export async function GET(request: NextRequest) {
     if (auth instanceof NextResponse) return auth;
     const id = sp.get('id');
     if (id) {
+      // prixot-* / turizm-* moliyaviy hujjatlar shu jadvalda yashaydi, lekin bu
+      // umumiy (har rol kiradigan) endpoint ORQALI o'qilmasin — ular o'zining
+      // rolga bog'langan route'i bor (/api/avia/prixot, /api/avia/turizm) va
+      // listOtchotlar() ham ularni yashiradi. Aks holda begzod/sardor to'g'ridan
+      // -to'g'ri ?id=prixot-YYYY-MM bilan kirgan pul ma'lumotini ko'rar edi.
+      if (id.startsWith('prixot-') || id.startsWith('turizm-')) {
+        return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+      }
       const doc = await getOtchot(id);
       return NextResponse.json(doc);
     }

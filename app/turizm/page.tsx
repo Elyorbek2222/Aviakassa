@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { Globe, Plus, Calendar, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Printer } from 'lucide-react';
+import { Globe, Plus, Calendar, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Printer, Pencil, Trash2 } from 'lucide-react';
 import { TURIZM_TUR_LABEL, type TurizmYozuv, type TurizmTur } from '@/types/avia';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -52,6 +52,7 @@ export default function TurizmPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saved, setSaved] = useState<TurizmYozuv | null>(null); // oxirgi saqlangan (chek uchun)
+  const [editing, setEditing] = useState<TurizmYozuv | null>(null); // tahrirlash oynasi
 
   // Zayavka lookup — mijoz + uslugalarni ko'rsatish
   const [zInfo, setZInfo] = useState<ZInfo | null>(null);
@@ -128,10 +129,23 @@ export default function TurizmPage() {
     } finally { setBusy(false); }
   };
 
+  // Tahrirlash/o'chirish ruxsati: admin — doim; sardor — id'dagi vaqtdan 48 soat ichida.
+  const createdMs = (id: string) => { const m = /^[A-Z]+-(\d{10,})-/.exec(id); return m ? Number(m[1]) : 0; };
+  const canModify = (y: TurizmYozuv) => role === 'admin' || (createdMs(y.id) > 0 && Date.now() - createdMs(y.id) < 48 * 3600 * 1000);
+
+  const delRow = async (y: TurizmYozuv) => {
+    if (!confirm(`${TURIZM_TUR_LABEL[y.tur]} — ${fmt(y.summa)}${y.valyuta ? ' ' + y.valyuta : ''} (zayavka ${y.zayavka}) o'chirilsinmi?\nU-ON'dan ham o'chadi.`)) return;
+    const r = await fetch(`/api/avia/turizm?oy=${activeOy}&id=${encodeURIComponent(y.id)}`, { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || "O'chirishda xatolik"); return; }
+    await mutate();
+  };
+
   const inp: React.CSSProperties = { backgroundColor: '#0A0F0D', border: `1px solid ${C.line}`, color: '#fff', padding: '9px 11px', borderRadius: 8, fontSize: 13.5, outline: 'none', width: '100%' };
   const lbl: React.CSSProperties = { color: C.mut, fontSize: 11.5, fontWeight: 600, marginBottom: 5, display: 'block' };
   const th: React.CSSProperties = { padding: '9px 10px', textAlign: 'left', color: C.mut, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', borderBottom: `2px solid ${C.line}` };
   const td: React.CSSProperties = { padding: '8px 10px', fontSize: 12.5, borderBottom: `1px solid ${C.line}`, whiteSpace: 'nowrap' };
+  const actBtn = (col: string): React.CSSProperties => ({ display: 'inline-flex', padding: 5, borderRadius: 6, border: `1px solid ${C.line}`, backgroundColor: 'transparent', color: col, cursor: 'pointer' });
 
   if (auth && !canUse) {
     return <div style={{ color: C.mut, padding: 30 }}>Bu bo‘lim uchun ruxsat yo‘q.</div>;
@@ -310,7 +324,7 @@ export default function TurizmPage() {
                 <th style={th}>Partnyor</th>
                 <th style={th}>Izoh</th>
                 <th style={th}>Kim</th>
-                <th style={{ ...th, textAlign: 'center' }}>Chek</th>
+                <th style={{ ...th, textAlign: 'center' }}>Amal</th>
               </tr>
             </thead>
             <tbody>
@@ -326,13 +340,18 @@ export default function TurizmPage() {
                   <td style={{ ...td, whiteSpace: 'normal', color: C.mut }}>{y.partnerNomi || '—'}</td>
                   <td style={{ ...td, whiteSpace: 'normal', color: C.dim }}>{y.izoh || ''}</td>
                   <td style={{ ...td, color: C.dim }}>{y.yaratdi}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    {y.tur === 'prixot' && (
-                      <button onClick={() => printChek(y)} title="Kassa cheki"
-                        style={{ display: 'inline-flex', padding: 5, borderRadius: 6, border: `1px solid ${C.line}`, backgroundColor: 'transparent', color: C.teal, cursor: 'pointer' }}>
-                        <Printer size={14} />
-                      </button>
-                    )}
+                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'inline-flex', gap: 5 }}>
+                      {y.tur === 'prixot' && (
+                        <button onClick={() => printChek(y)} title="Kassa cheki" style={actBtn(C.teal)}><Printer size={14} /></button>
+                      )}
+                      {canModify(y) && (
+                        <>
+                          <button onClick={() => setEditing(y)} title="Tahrirlash" style={actBtn(C.orange)}><Pencil size={14} /></button>
+                          <button onClick={() => delRow(y)} title="O'chirish" style={actBtn(C.red)}><Trash2 size={14} /></button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -345,6 +364,133 @@ export default function TurizmPage() {
         <div style={{ padding: '8px 12px', color: C.dim, fontSize: 11, borderTop: `1px solid ${C.line}` }}>
           {rows.length} yozuv · {oyLabel(activeOy)}
         </div>
+      </div>
+
+      {editing && refs && (
+        <EditTurizmModal y={editing} oy={activeOy} refs={refs} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await mutate(); }} />
+      )}
+    </div>
+  );
+}
+
+// Yozuvni tahrirlash oynasi. U-ON'da payment/update yo'q → server eski to'lovni
+// o'chirib, yangisini yaratadi (delete + create).
+function EditTurizmModal({ y, oy, refs, onClose, onSaved }: { y: TurizmYozuv; oy: string; refs: RefsResp; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({
+    tur: y.tur as TurizmTur,
+    sana: y.sana,
+    summa: String(y.summa),
+    kurs: y.kurs ? String(y.kurs) : '',
+    currencyId: y.currencyId ? String(y.currencyId) : (refs.currencies[0]?.id ? String(refs.currencies[0].id) : ''),
+    partnerId: y.partnerId ? String(y.partnerId) : '',
+    cashId: y.cashId ? String(y.cashId) : '',
+    formId: y.formId ? String(y.formId) : '',
+    izoh: y.izoh || '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const curName = refs.currencies.find((c) => String(c.id) === f.currencyId)?.name;
+  const needKurs = !isSom(curName);
+  const summaNum = Number(f.summa.replace(/\s/g, '')) || 0;
+  const kursNum = Number(f.kurs) || 0;
+  const uzs = needKurs ? (kursNum ? Math.round(summaNum * kursNum) : 0) : summaNum;
+
+  const inp: React.CSSProperties = { backgroundColor: '#0A0F0D', border: `1px solid ${C.line}`, color: '#fff', padding: '9px 11px', borderRadius: 8, fontSize: 13.5, outline: 'none', width: '100%' };
+  const lbl: React.CSSProperties = { color: C.mut, fontSize: 11.5, fontWeight: 600, marginBottom: 5, display: 'block' };
+
+  const save = async () => {
+    setErr('');
+    if (!summaNum || summaNum <= 0) { setErr("Summa 0 dan katta bo'lishi kerak"); return; }
+    if (needKurs && kursNum <= 0) { setErr('Valyuta so‘mdan boshqa — kursni kiriting'); return; }
+    setBusy(true);
+    try {
+      const partner = refs.suppliers.find((s) => String(s.id) === f.partnerId);
+      const r = await fetch('/api/avia/turizm', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oy, id: y.id, tur: f.tur, sana: f.sana, summa: summaNum,
+          kurs: needKurs && kursNum ? kursNum : 0,
+          currencyId: f.currencyId || undefined, valyuta: curName,
+          partnerId: f.partnerId || undefined, partnerNomi: partner?.name,
+          cashId: f.cashId || undefined, formId: f.formId || undefined,
+          izoh: f.izoh.trim(),
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setErr(d.error || 'Xatolik'); return; }
+      onSaved();
+    } catch { setErr("Serverga ulanib bo'lmadi"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: '#000A', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 20, zIndex: 50, overflow: 'auto' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, width: '100%', maxWidth: 560, marginTop: 40 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 700, margin: 0 }}>Tahrirlash — zayavka {y.zayavka}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.mut, cursor: 'pointer', fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {(['prixot', 'rasxod'] as TurizmTur[]).map((t) => {
+            const active = f.tur === t; const col = t === 'prixot' ? C.green : C.red;
+            return (
+              <button key={t} onClick={() => setF({ ...f, tur: t })}
+                style={{ flex: 1, padding: 9, borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13.5, border: `1px solid ${active ? col : C.line}`, backgroundColor: active ? col + '18' : '#0A0F0D', color: active ? col : C.mut }}>
+                {TURIZM_TUR_LABEL[t]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+          <div><label style={lbl}>Sana</label><input type="date" value={f.sana} onChange={(e) => setF({ ...f, sana: e.target.value })} style={inp} /></div>
+          <div><label style={lbl}>Summa</label><input inputMode="numeric" value={f.summa} onChange={(e) => setF({ ...f, summa: e.target.value })} style={{ ...inp, textAlign: 'right', fontFamily: 'var(--font-geist-mono)' }} /></div>
+          <div>
+            <label style={lbl}>Valyuta</label>
+            <select value={f.currencyId} onChange={(e) => setF({ ...f, currencyId: e.target.value })} style={inp}>
+              {refs.currencies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          {needKurs && (
+            <div>
+              <label style={lbl}>Kurs</label>
+              <input inputMode="numeric" value={f.kurs} onChange={(e) => setF({ ...f, kurs: e.target.value })} placeholder="12800" style={{ ...inp, textAlign: 'right', fontFamily: 'var(--font-geist-mono)' }} />
+              {uzs > 0 && <div style={{ color: C.teal, fontSize: 11.5, marginTop: 4 }}>= {fmt(uzs)} so‘m</div>}
+            </div>
+          )}
+          <div>
+            <label style={lbl}>Partnyor</label>
+            <select value={f.partnerId} onChange={(e) => setF({ ...f, partnerId: e.target.value })} style={inp}>
+              <option value="">— yo‘q —</option>
+              {refs.suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Kassa</label>
+            <select value={f.cashId} onChange={(e) => setF({ ...f, cashId: e.target.value })} style={inp}>
+              <option value="">— standart —</option>
+              {refs.cashboxes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>To‘lov shakli</label>
+            <select value={f.formId} onChange={(e) => setF({ ...f, formId: e.target.value })} style={inp}>
+              <option value="">— yo‘q —</option>
+              {refs.forms.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={lbl}>Izoh</label><input value={f.izoh} onChange={(e) => setF({ ...f, izoh: e.target.value })} style={inp} /></div>
+        </div>
+
+        {err && <div style={{ color: C.red, fontSize: 12.5, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={14} /> {err}</div>}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '10px 16px', borderRadius: 9, border: `1px solid ${C.line}`, backgroundColor: 'transparent', color: C.mut, fontSize: 13.5, cursor: 'pointer' }}>Bekor</button>
+          <button onClick={save} disabled={busy} style={{ padding: '10px 18px', borderRadius: 9, border: `1px solid ${C.teal}`, backgroundColor: C.teal + '18', color: C.teal, fontSize: 13.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>{busy ? 'Saqlanmoqda…' : 'Saqlash'}</button>
+        </div>
+        <div style={{ color: C.dim, fontSize: 11, marginTop: 10 }}>Eslatma: saqlashda U-ON to‘lovi qayta yoziladi (eski o‘chib, yangisi yaraladi).</div>
       </div>
     </div>
   );

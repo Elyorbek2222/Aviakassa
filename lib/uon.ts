@@ -106,9 +106,16 @@ export async function getSuppliers(): Promise<UonRef[]> {
   return toRefs(all, ['name', 'name_official', 'title']);
 }
 
+// SEM Travel faqat UZS (so'm) va USD (dollar) bilan ishlaydi — U-ON'dagi o'nlab
+// valyutalar dropdown'ni to'ldirmasin. So'm birinchi (forma default'i).
 export async function getCurrencies(): Promise<UonRef[]> {
   const { data } = await uonGet('currency');
-  return toRefs(firstArray(data), ['name', 'title', 'code', 'short_name']);
+  const all = toRefs(firstArray(data), ['name', 'title', 'code', 'short_name']);
+  const isSomN = (n: string) => /сум|so'?m|\buzs\b/i.test(n);
+  const isUsdN = (n: string) => /доллар|dollar|\busd\b/i.test(n);
+  const matched = all.filter((c) => isSomN(c.name) || isUsdN(c.name));
+  const ordered = [...matched.filter((c) => isSomN(c.name)), ...matched.filter((c) => isUsdN(c.name))];
+  return ordered.length ? ordered : all; // mos kelmasa — hammasini (dropdown bo'sh qolmasin)
 }
 
 export async function getCashboxes(): Promise<UonRef[]> {
@@ -229,6 +236,15 @@ export async function createPayment(
   const d = (data && typeof data === 'object' ? (data as Record<string, unknown>) : {}) as Record<string, unknown>;
   const rawId = d.id ?? d.payment_id ?? (d.result && typeof d.result === 'object' ? (d.result as Record<string, unknown>).id : undefined);
   return { ok: true, paymentId: rawId !== undefined ? String(rawId) : undefined };
+}
+
+// To'lovni o'chirish (xato kiritilganda / tahrirlashda eski to'lovni almashtirish).
+// Memory (2026-07 jonli): `payment/delete/{id}` ishlaydi. id yo'lda → GET.
+// ponytail: agar U-ON delete'ni POST talab qilsa — bu yerni POST'ga o'zgartirish.
+export async function deletePayment(paymentId: string | number): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { httpOk, data } = await uonGet(`payment/delete/${paymentId}`);
+  if (!isOk(httpOk, data)) return { ok: false, error: errText(data) };
+  return { ok: true };
 }
 
 // ===== Zayavkalar ro'yxati (hisobotlar uchun) =====
