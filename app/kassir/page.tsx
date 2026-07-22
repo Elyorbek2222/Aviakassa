@@ -951,27 +951,80 @@ export default function FinansistPage() {
       const XLSX = await import('xlsx');
       const wb = XLSX.utils.book_new();
 
-      // 1. Kirim-Chiqim jurnali (joriy davr, +kirim / −chiqim)
-      const movRows = movements.map((m) => ({
-        Sana: m.sana,
-        Tur: MOV_META[m.kind].label,
-        Tavsif: m.label + (m.sub ? ` · ${m.sub}` : ''),
-        "Yo'nalish": MOV_META[m.kind].sign > 0 ? 'Kirim' : 'Chiqim',
-        'Summa (UZS)': MOV_META[m.kind].sign * m.summa,
-      }));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(movRows.length ? movRows : [{ Sana: '', Tur: '', Tavsif: 'Ma\'lumot yo\'q', "Yo'nalish": '', 'Summa (UZS)': '' }]), 'Kirim-Chiqim');
+      // Bilet raqami -> shu biletga kirgan jami pul (barcha to'lovlar, davrdan qat'i
+      // nazar — bilet uchun keyin kirgan pul ham hisobga olinadi).
+      const paidByTicket = new Map<string, number>();
+      allPayments.forEach((p) => {
+        if (p.biletRaqam) paidByTicket.set(p.biletRaqam, (paidByTicket.get(p.biletRaqam) || 0) + p.summa);
+      });
 
-      // 2. Kassa kitobi (UZS) — kunlik ostatok
+      // 1. Kirim-Chiqim jurnali — to'liq maydonlar bilan (bilet raqami, mijoz, tur, valyuta, izoh)
+      const movRows = movements.map((m) => {
+        const p = m.payment;
+        return {
+          Sana: m.sana,
+          Tur: MOV_META[m.kind].label,
+          'Bilet raqami': p?.biletRaqam || '',
+          Mijoz: p?.mijozIsmi || '',
+          Tavsif: m.label + (m.sub ? ` · ${m.sub}` : ''),
+          "To'lov turi": p?.tolovTuri || '',
+          Valyuta: p ? (p.valyuta === 'usd' ? 'USD' : 'UZS') : '',
+          'USD summa': p?.valyuta === 'usd' ? (p.summAsl ?? '') : '',
+          Kurs: p?.valyuta === 'usd' ? (p.kurs ?? '') : '',
+          "Yo'nalish": MOV_META[m.kind].sign > 0 ? 'Kirim' : 'Chiqim',
+          'Summa (UZS)': MOV_META[m.kind].sign * m.summa,
+          Izoh: p?.izoh || m.rasxod?.sabab || m.obmen?.izoh || m.inkas?.izoh || m.perevod?.izoh || '',
+        };
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(movRows), 'Kirim-Chiqim');
+
+      // 2. To'lovlar (prixodlar) — bilet raqami bo'yicha kirgan har bir summa
+      const payRows = allPayments
+        .filter((p) => inPeriod(p.sana, period))
+        .sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a))
+        .map((p) => ({
+          Sana: p.sana,
+          'Bilet raqami': p.biletRaqam || '',
+          Mijoz: p.mijozIsmi || '',
+          "To'lov turi": p.tolovTuri,
+          Valyuta: p.valyuta === 'usd' ? 'USD' : 'UZS',
+          'USD summa': p.valyuta === 'usd' ? (p.summAsl ?? '') : '',
+          Kurs: p.valyuta === 'usd' ? (p.kurs ?? '') : '',
+          'Summa (UZS)': p.summa,
+          Izoh: p.izoh || '',
+        }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(payRows), "To'lovlar");
+
+      // 3. Biletlar — har bir bilet uchun sotish, KIRGAN (to'langan) va qolgan qarz
+      const ticketRows = allTickets
+        .filter((t) => inPeriod(t.sana, period))
+        .sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a))
+        .map((t) => {
+          const kirgan = paidByTicket.get(t.biletRaqam) || 0;
+          return {
+            Sana: t.sana,
+            'Bilet raqami': t.biletRaqam,
+            "Yo'lovchi": t.yolovchi,
+            Aviakompaniya: t.airlineName,
+            Tarif: t.tarif,
+            'Sotish narxi': t.sotishNarxi,
+            'Kirgan (to\'langan)': kirgan,
+            Qarz: Math.max(0, t.sotishNarxi - kirgan),
+          };
+        });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ticketRows), 'Biletlar');
+
+      // 4. Kassa kitobi (UZS) — kunlik ostatok
       const bookRows = uzsBook.filter((d) => inPeriod(d.sana, period)).map((d) => ({
         Sana: d.sana, 'Ostatok boshi': d.boshi, Kirim: d.kirim, Chiqim: d.chiqim, 'Ostatok oxiri': d.oxiri,
       }));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bookRows.length ? bookRows : [{ Sana: '', 'Ostatok boshi': '', Kirim: '', Chiqim: '', 'Ostatok oxiri': '' }]), 'Kassa kitobi UZS');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bookRows), 'Kassa kitobi UZS');
 
-      // 3. Qarzdorlar (joriy davr biletlari bo'yicha)
+      // 5. Qarzdorlar (joriy davr biletlari bo'yicha)
       const debtRows = (debts as { biletRaqam: string; mijozIsmi: string; sotishNarxi: number; tolangan: number; qarz: number; sana: string }[]).map((d) => ({
         Bilet: d.biletRaqam, Mijoz: d.mijozIsmi, 'Sotish narxi': d.sotishNarxi, "To'langan": d.tolangan, Qarz: d.qarz, Sana: d.sana,
       }));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(debtRows.length ? debtRows : [{ Bilet: '', Mijoz: '', 'Sotish narxi': '', "To'langan": '', Qarz: '', Sana: '' }]), 'Qarzdorlar');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(debtRows), 'Qarzdorlar');
 
       XLSX.writeFile(wb, `Finansist-${periodLabel(period)}.xlsx`);
     } finally {
