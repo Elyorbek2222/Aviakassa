@@ -129,6 +129,19 @@ export async function getPaymentForms(): Promise<UonRef[]> {
   return toRefs(firstArray(data), ['name', 'title']);
 }
 
+// Menejerlar (U-ON `manager` — foydalanuvchilar). u_id zayavka manager_id bilan mos.
+// KPI uchun xodimni shu id'ga bog'laymiz.
+export async function getManagers(): Promise<UonRef[]> {
+  const { data } = await uonGet('manager');
+  return firstArray(data)
+    .map((r) => {
+      const id = Number(r.u_id ?? r.id);
+      const name = [r.u_surname, r.u_name].map((x) => String(x ?? '').trim()).filter(Boolean).join(' ') || `#${id}`;
+      return { id, name };
+    })
+    .filter((r) => Number.isFinite(r.id) && r.id > 0);
+}
+
 // ===== Zayavkani tekshirish =====
 // Sardor kiritgan zayavka nomerini U-ON ichki request ID sifatida qabul qiladi va
 // mavjudligini tekshiradi. Topilsa rId qaytadi, aks holda null.
@@ -312,6 +325,56 @@ export async function listZayavki(sinceDate: string): Promise<HisobotZayavka[]> 
     if (got < BATCH * PER) break; // to'liq bo'lmagan partiya = oxiriga yetdik
   }
   return all.map(mapZayavka);
+}
+
+// ===== Prixot to'lovlari (KPI uchun) =====
+// Har zayavka ichida `payments` massivi keladi (cio_id 1=prixot/приход, 2=rasxod).
+// KPI = tushgan pul bo'yicha, pul tushgan oyga yoziladi — shuning uchun har prixot
+// to'lovi (cio_id=1) alohida yozuv: menejer + oy + so'm qiymati. So'm = price × rate
+// (USD to'lov kursga ko'paytiriladi; som bo'lsa price o'zi).
+
+export interface PrixotTolov {
+  rId: number;
+  managerId: number;
+  managerName: string;
+  oy: string;   // YYYY-MM (to'lov sanasi)
+  sana: string; // YYYY-MM-DD
+  som: number;  // so'mdagi qiymat
+}
+
+export async function listPrixotTolovlar(sinceDate: string): Promise<PrixotTolov[]> {
+  const PER = 100, BATCH = 5, MAX_PAGE = 40;
+  const out: PrixotTolov[] = [];
+  for (let start = 1; start <= MAX_PAGE; start += BATCH) {
+    const pages = Array.from({ length: BATCH }, (_, i) => start + i);
+    const results = await Promise.all(
+      pages.map((p) => uonPost('request/search', { date_begin_from: sinceDate, page: p })),
+    );
+    let got = 0;
+    for (const { httpOk, data } of results) {
+      if (!httpOk) continue;
+      const rows = firstArray(data);
+      got += rows.length;
+      for (const r of rows) {
+        const managerId = Number(r.manager_id) || 0;
+        const managerName = [r.manager_surname, r.manager_name].map((x) => String(x ?? '').trim()).filter(Boolean).join(' ');
+        const rId = Number(r.id) || 0;
+        const pmts = Array.isArray(r.payments) ? (r.payments as Record<string, unknown>[]) : [];
+        for (const p of pmts) {
+          if (Number(p.cio_id) !== 1) continue; // faqat prixot (приход)
+          const sana = String(p.date_create ?? '').slice(0, 10);
+          if (!sana) continue;
+          const price = num(p.price);
+          const rate = num(p.rate) || 1;
+          const som = Number(p.currency_id) === 18 ? price : price * rate; // som bo'lmasa kursga
+          if (som <= 0) continue;
+          out.push({ rId, managerId, managerName, oy: sana.slice(0, 7), sana, som });
+        }
+      }
+    }
+    if (got < BATCH * PER) break;
+  }
+  return out;
 }
 
 // Kalit sozlanganmi (sahifada ogohlantirish uchun)

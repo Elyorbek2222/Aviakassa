@@ -15,6 +15,9 @@ import type {
   PrixotDoc,
   PrixotYozuv,
   TurizmDoc,
+  TurizmYozuv,
+  TurizmKassaYozuv,
+  TurizmXodimlar,
 } from '../types/avia';
 import { PRIXOT_HISOB_TURLARI } from '../types/avia';
 
@@ -215,8 +218,8 @@ export async function listOtchotlar(): Promise<OtchotListItem[]> {
   const { data, error } = await getSupabase().from('otchot').select('id, doc');
   if (error) throw error;
   return (data || [])
-    // prixot-* / turizm-* hujjatlar shu jadvalda saqlanadi, lekin otchot emas — chiqarib tashlaymiz
-    .filter((r: { id: string }) => !r.id.startsWith('prixot-') && !r.id.startsWith('turizm-'))
+    // prixot-* / turizm-* / TKS-* / oylik-* hujjatlar shu jadvalda saqlanadi, lekin otchot emas — chiqarib tashlaymiz
+    .filter((r: { id: string }) => !r.id.startsWith('prixot-') && !r.id.startsWith('turizm-') && !r.id.startsWith('TKS-') && !r.id.startsWith('oylik-'))
     .map((r: { id: string; doc: SverkaData }) => ({
       id: r.id,
       oy: r.doc?.meta?.oy || r.id,
@@ -243,7 +246,7 @@ export async function listOylikXisobot(): Promise<OylikXisobotRow[]> {
       const yoz = (r.doc?.yozuvlar || []) as PrixotYozuv[];
       bucket(oy).pulKirgan += yoz.reduce(
         (s, y) => s + (PRIXOT_HISOB_TURLARI.includes(y.tur) ? (y.summa || 0) : 0), 0);
-    } else if (!r.id.startsWith('turizm-')) {
+    } else if (!r.id.startsWith('turizm-') && !r.id.startsWith('TKS-') && !r.id.startsWith('oylik-')) {
       const oy = r.doc?.meta?.oy || r.id;
       bucket(oy).biletlar += r.doc?.meta?.sverka?.begSum || 0;
     }
@@ -314,6 +317,72 @@ export async function listTurizmOylar(): Promise<string[]> {
     .filter((id: string) => id.startsWith('turizm-'))
     .map((id: string) => id.slice('turizm-'.length))
     .sort((a: string, b: string) => (a < b ? 1 : -1));
+}
+
+// Barcha oylardagi turizm yozuvlari (prixot/rasxod) — ostatka hisoblash uchun.
+// Bitta o'qishda barcha turizm-* hujjatlarini yig'adi.
+export async function getAllTurizmYozuvlar(): Promise<TurizmYozuv[]> {
+  const { data, error } = await getSupabase().from('otchot').select('id, doc');
+  if (error) throw error;
+  const out: TurizmYozuv[] = [];
+  for (const r of (data || []) as { id: string; doc: TurizmDoc }[]) {
+    if (r.id.startsWith('turizm-')) out.push(...(r.doc?.yozuvlar || []));
+  }
+  return out;
+}
+
+// ===== Turizm ichki kassa jurnali (perevod/obmen/inkassatsiya/oylik/boshlangich) =====
+// Row-per-event. Alohida jadval yaratish uchun DDL huquqi yo'q (REST service_role
+// faqat CRUD) — shuning uchun prixot-*/turizm-* kabi shared `otchot` jadvalida,
+// `TKS-` prefiksli id bilan yashaydi. listOtchotlar/listOylikXisobot va otchot
+// route bu prefiksni chiqarib tashlaydi.
+
+export async function getTurizmKassa(): Promise<TurizmKassaYozuv[]> {
+  const { data, error } = await getSupabase().from('otchot').select('id, doc').like('id', 'TKS-%');
+  if (error) throw error;
+  return (data || []).map((r: { doc: TurizmKassaYozuv }) => r.doc);
+}
+
+export async function addTurizmKassa(item: TurizmKassaYozuv): Promise<TurizmKassaYozuv[]> {
+  const { error } = await getSupabase().from('otchot').upsert({ id: item.id, doc: item }, { onConflict: 'id' });
+  if (error) throw error;
+  return getTurizmKassa();
+}
+
+export async function updateTurizmKassa(item: TurizmKassaYozuv): Promise<void> {
+  const { error } = await getSupabase().from('otchot').upsert({ id: item.id, doc: item }, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+export async function deleteTurizmKassa(id: string): Promise<void> {
+  const { error } = await getSupabase().from('otchot').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ===== Turizm xodimlar ro'yxati (fin otdel / oylik) — otchot `oylik-xodimlar` =====
+
+export async function getTurizmXodimlar(): Promise<TurizmXodimlar> {
+  const { data, error } = await getSupabase().from('otchot').select('doc').eq('id', 'oylik-xodimlar').maybeSingle();
+  if (error) throw error;
+  return (data?.doc as TurizmXodimlar) || { xodimlar: [] };
+}
+
+export async function saveTurizmXodimlar(d: TurizmXodimlar): Promise<void> {
+  const { error } = await getSupabase().from('otchot').upsert({ id: 'oylik-xodimlar', doc: d }, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+// Ulush (участие) — zayavka bo'yicha menejer ulushi %. U-ON'da bu maydon yo'q,
+// qo'lда kiritiladi (default 100 — saqlanmaydi). otchot `turizm-ulush` da { map }.
+export async function getTurizmUlush(): Promise<Record<string, number>> {
+  const { data, error } = await getSupabase().from('otchot').select('doc').eq('id', 'turizm-ulush').maybeSingle();
+  if (error) throw error;
+  return (data?.doc as { map?: Record<string, number> })?.map || {};
+}
+
+export async function saveTurizmUlush(map: Record<string, number>): Promise<void> {
+  const { error } = await getSupabase().from('otchot').upsert({ id: 'turizm-ulush', doc: { map } }, { onConflict: 'id' });
+  if (error) throw error;
 }
 
 // ===== Settings =====

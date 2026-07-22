@@ -9,6 +9,7 @@ create table if not exists refund        (id text primary key, doc jsonb not nul
 create table if not exists obmen         (id text primary key, doc jsonb not null, created_at timestamptz default now());
 create table if not exists perevod       (id text primary key, doc jsonb not null, created_at timestamptz default now());
 create table if not exists settings      (id text primary key, doc jsonb not null);
+-- otchot: oylik sverka + prixot-*/turizm-*/oylik-* hujjatlari + turizm ichki kassa (TKS-*)
 create table if not exists otchot        (id text primary key, doc jsonb not null);
 -- audit: kim / nima / qachon o'zgartirgani (o'zgarmas jurnal)
 create table if not exists audit         (id text primary key, doc jsonb not null, created_at timestamptz default now());

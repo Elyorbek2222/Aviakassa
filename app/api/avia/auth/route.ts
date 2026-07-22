@@ -7,9 +7,44 @@ import {
   SESSION_COOKIE_NAME,
 } from '@/lib/auth';
 
+// Brute-force cheklovi: bir IP dan muvaffaqiyatsiz login urinishlari sonini
+// cheklaydi. Video'dagi #1 hujum — parolni ketma-ket urib topish (brute force).
+// ponytail: in-memory — serverless'da har instance alohida hisoblaydi va sovuq
+// start'da nollanadi. Bir instance uchun ham hujumni sezilarli sekinlashtiradi.
+// Ko'p instance / jiddiy yuk bo'lsa Upstash Redis (@upstash/ratelimit)'ga o'tkaziladi.
+const loginAttempts = new Map<string, { count: number; first: number }>();
+const MAX_ATTEMPTS = 8;
+const WINDOW_MS = 10 * 60 * 1000; // 10 daqiqa
+
+function clientIp(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0].trim();
+  return req.headers.get('x-real-ip') || 'unknown';
+}
+
+// Muvaffaqiyatsiz urinishni qayd etadi va limit oshgan bo'lsa true qaytaradi.
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const rec = loginAttempts.get(ip);
+  if (!rec || now - rec.first > WINDOW_MS) {
+    loginAttempts.set(ip, { count: 1, first: now });
+    return false;
+  }
+  rec.count++;
+  return rec.count > MAX_ATTEMPTS;
+}
+
 // POST: login
 export async function POST(request: NextRequest) {
   try {
+    const ip = clientIp(request);
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: 'Juda ko\'p urinish. 10 daqiqadan so\'ng qayta urinib ko\'ring.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { username, password } = body;
 
@@ -27,6 +62,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Muvaffaqiyatli login — shu IP hisoblagichini tozalaymiz.
+    loginAttempts.delete(ip);
 
     const token = createSessionToken(user);
 

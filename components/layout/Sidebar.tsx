@@ -68,6 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/turizm', label: 'Turizm (SEM Travel)', icon: <Globe size={18} /> },
       { href: '/turizm/kassa', label: 'Kassa (ostatka)', icon: <Wallet size={18} /> },
+      { href: '/turizm/fin', label: 'Fin Otdel (oylik)', icon: <Landmark size={18} /> },
       { href: '/turizm/hisobot', label: 'Turizm hisoboti', icon: <FileText size={18} /> },
     ],
   },

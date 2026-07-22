@@ -18,6 +18,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Fayl tanlanmagan' }, { status: 400 })
     }
 
+    // Hajm cheklovi: cheksiz fayl butun xotirani egallashi (DoS) oldini oladi.
+    const MAX_UPLOAD = 10 * 1024 * 1024 // 10 MB — Excel hisobot uchun yetarli
+    if (file.size > MAX_UPLOAD) {
+      return NextResponse.json({ error: 'Fayl juda katta (maks. 10 MB)' }, { status: 413 })
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer())
 
     // type === 'all' — bitta Excel, 3 ta sheet (Biletlar, Tolovlar, Inkassatsiya)

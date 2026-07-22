@@ -329,6 +329,82 @@ export interface TurizmDoc {
   yozuvlar: TurizmYozuv[];
 }
 
+// ===== Turizm ichki kassa (ostatka / xolatlar) =====
+// U-ON mijoz/partner CRM'i; naxt/plastik ajratish va o'z hisoblar orasidagi
+// ko'chirishlar U-ON'da yo'q — shuning uchun kassa BIZNING ichki daftarimizda
+// yuritiladi. Ostatka hech qachon saqlanmaydi — har o'qishda hisoblanadi
+// (avia NAQD/BANK/USD ostatka naqshi: app/api/avia/reports/route.ts).
+
+// 4 xolat = (valyuta × naxt/plastik)
+export type TurizmHisob = 'uzs_naxt' | 'uzs_plastik' | 'usd_naxt' | 'usd_plastik';
+
+export const TURIZM_HISOB_LABEL: Record<TurizmHisob, string> = {
+  uzs_naxt: "So'm naqd",
+  uzs_plastik: "So'm plastik",
+  usd_naxt: 'USD naqd',
+  usd_plastik: 'USD plastik',
+};
+
+// Ichki kassa jurnali turlari (bitta `turizm_kassa` jadvalida, row-per-event).
+//   boshlangich — xolatning boshlang'ich (real) qoldig'i (bir marta)
+//   perevod     — o'z xolatlarim orasida (bir valyuta: naxt↔plastik)
+//   obmen       — valyuta almashish (USD xolat → UZS xolat, summa×kurs)
+//   inkassatsiya— naxt pulni yig'ish/topshirish (naxt xolatdan chiqim)
+//   oylik       — xodimga to'langan oylik (xolatdan chiqim)
+export type TurizmKassaTur = 'boshlangich' | 'perevod' | 'obmen' | 'inkassatsiya' | 'oylik';
+
+export const TURIZM_KASSA_TUR_LABEL: Record<TurizmKassaTur, string> = {
+  boshlangich: "Boshlang'ich qoldiq",
+  perevod: 'Perevod (ko\'chirish)',
+  obmen: 'Obmen (valyuta)',
+  inkassatsiya: 'Inkassatsiya',
+  oylik: 'Oylik',
+};
+
+export interface TurizmKassaYozuv {
+  id: string;             // TKS-<ms>-<rand>
+  sana: string;           // YYYY-MM-DD
+  tur: TurizmKassaTur;
+  from?: TurizmHisob;     // chiqim xolati (perevod/obmen/inkassatsiya/oylik)
+  to?: TurizmHisob;       // kirim xolati (perevod/obmen/boshlangich)
+  summa: number;          // `from` valyutasidagi summa (boshlangich: `to`ga kirim)
+  kurs?: number;          // obmen: USD→UZS kursi
+  toSumma?: number;       // obmen: `to` xolatga tushadigan summa = summa × kurs
+  xodim?: string;         // oylik: xodim ismi
+  otdel?: TurizmOtdel;    // oylik: bo'lim (fin otdel hisobot uchun)
+  xodimId?: string;       // oylik: xodim id (ro'yxatdan)
+  izoh?: string;
+  yaratdi: string;        // kim kiritdi
+}
+
+// ===== Turizm xodimlar / oylik (fin otdel) =====
+// Bo'limlar bo'yicha fiks oylik. Rahbar = boshliq maoshi, ham bo'lim sifatida.
+export type TurizmOtdel = 'menejerlar' | 'marketing' | 'rahbar';
+
+export const TURIZM_OTDEL_LABEL: Record<TurizmOtdel, string> = {
+  menejerlar: 'Menejerlar',
+  marketing: 'Marketing',
+  rahbar: 'Rahbar',
+};
+
+export const TURIZM_OTDELLAR: TurizmOtdel[] = ['menejerlar', 'marketing', 'rahbar'];
+
+export interface TurizmXodim {
+  id: string;             // XDM-<ms>-<rand>
+  ism: string;
+  otdel: TurizmOtdel;
+  oylik: number;          // Oklad — fiks oylik summa (oyiga)
+  valyuta: 'uzs' | 'usd';
+  faol: boolean;          // ishdan bo'shasa false (tarix uchun o'chirilmaydi)
+  uonManagerId?: number;  // U-ON menejer u_id (KPI = shu menejer zayavkalari) — menejer bo'lsa
+  kpiFoiz?: number;       // shaxsiy KPI foizi (%) — KPI = tushgan pul × ulush × kpiFoiz
+}
+
+// Xodimlar ro'yxati — otchot jadvalida `oylik-xodimlar` id bilan (bitta hujjat)
+export interface TurizmXodimlar {
+  xodimlar: TurizmXodim[];
+}
+
 // ===== Turizm hisobotlari (U-ON zayavkalaridan jonli hisoblanadi) =====
 // Manba: U-ON `request/search`. Har zayavkada 4 ta calc maydoni bor:
 //   calc_price        = mijoz shartnoma summasi (sotuv)
@@ -394,7 +470,9 @@ export type AuditEntity =
   | 'settings'
   | 'otchot'
   | 'prixot'
-  | 'turizm';
+  | 'turizm'
+  | 'turizm-kassa'
+  | 'turizm-oylik';
 
 export interface AuditEntry {
   id: string;
