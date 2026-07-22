@@ -68,7 +68,12 @@ export default function TurizmPage() {
       const r = await fetch(`/api/avia/turizm/zayavka?nomer=${encodeURIComponent(nomer)}`);
       const d = await r.json();
       if (!r.ok) { setZInfo(null); setZErr(d.error || 'Topilmadi'); return; }
-      setZInfo(d.info as ZInfo);
+      const info = d.info as ZInfo;
+      setZInfo(info);
+      // Ishlash oson: prixotда summa bo'sh bo'lsa — mijoz qarzini avtomatik qo'yamiz (o'zgartirsa bo'ladi)
+      if (f.tur === 'prixot' && !f.summa.trim() && info?.clientDebt > 0) {
+        setF((p) => ({ ...p, summa: String(Math.round(info.clientDebt)) }));
+      }
     } catch { setZErr("Serverga ulanib bo'lmadi"); }
     finally { setZLoading(false); }
   };

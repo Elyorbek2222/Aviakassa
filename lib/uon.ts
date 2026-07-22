@@ -49,9 +49,20 @@ function isOk(httpOk: boolean, data: unknown): boolean {
 function errText(data: unknown): string {
   if (data && typeof data === 'object') {
     const d = data as Record<string, unknown>;
-    const m = d.message ?? d.error ?? d.errors ?? d.text;
-    if (typeof m === 'string' && m) return m;
-    if (m) return JSON.stringify(m);
+    // Matnni ichma-ich qidiramiz: string; yoki {message}/{text} (masalan {error:{message}}).
+    const dig = (v: unknown): string | null => {
+      if (typeof v === 'string' && v.trim()) return v.trim();
+      if (v && typeof v === 'object') {
+        const o = v as Record<string, unknown>;
+        if (typeof o.message === 'string' && o.message.trim()) return o.message.trim();
+        if (typeof o.text === 'string' && o.text.trim()) return o.text.trim();
+      }
+      return null;
+    };
+    const m = dig(d.message) ?? dig(d.error) ?? dig(d.errors) ?? dig(d.text);
+    if (m) return m;
+    const raw = JSON.stringify(d);
+    if (raw && raw !== '{}') return raw.slice(0, 200); // topilmasa — xom javob (qisqa)
   }
   return 'U-ON API xatosi';
 }
@@ -254,10 +265,10 @@ export async function createPayment(
 }
 
 // To'lovni o'chirish (xato kiritilganda / tahrirlashda eski to'lovni almashtirish).
-// Memory (2026-07 jonli): `payment/delete/{id}` ishlaydi. id yo'lda → GET.
-// ponytail: agar U-ON delete'ni POST talab qilsa — bu yerni POST'ga o'zgartirish.
+// JONLI TASDIQLANGAN (2026-07): `payment/delete/{id}` faqat POST bilan ishlaydi.
+// GET → 404 "Method not allowed (see GET/POST)". POST (bo'sh tana) → {result:200}.
 export async function deletePayment(paymentId: string | number): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { httpOk, data } = await uonGet(`payment/delete/${paymentId}`);
+  const { httpOk, data } = await uonPost(`payment/delete/${paymentId}`, {});
   if (!isOk(httpOk, data)) return { ok: false, error: errText(data) };
   return { ok: true };
 }
