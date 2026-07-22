@@ -244,15 +244,21 @@ export interface CreatePaymentInput {
 export async function createPayment(
   input: CreatePaymentInput
 ): Promise<{ ok: true; paymentId?: string } | { ok: false; error: string }> {
+  // MUHIM (jonli tasdiqlangan): `type_id` to'lov qaysi TOMONga tushishini belgilaydi.
+  //   type_id=1 → "Расчеты с клиентом" (mijoz tomoni, calc_client)
+  //   type_id=2 → "Расчеты с партнером" (partnyor tomoni, calc_partner)
+  // Avval `type_id: supplierId ? 2 : 1` edi — prixotда partnyor tanlansa mijoz
+  // to'lovi partnyor tomonga tushib, hisobotni buzardi. Endi YO'NALISHга bog'liq:
+  // prixot=mijoz(1), rasxod=partnyor(2). Partnyor faqat rasxodда yuboriladi.
   const { httpOk, data } = await uonPost('payment/create', {
     r_id: input.rId,
     cio_id: input.isPrixot ? 1 : 2,                    // 1=приход, 2=расход
-    type_id: input.supplierId ? 2 : 1,                 // 2=partner bilan, 1=mijoz bilan
+    type_id: input.isPrixot ? 1 : 2,                   // 1=mijoz (prixot), 2=partnyor (rasxod)
     price: input.price,
     c_id: input.currencyId,                            // valyuta — U-ON doc: `c_id` (currency_id EMAS!)
     currency_id: input.currencyId,                     // ehtiyot uchun (U-ON noto'g'ri nomni e'tiborsiz qoldiradi)
     koef: input.koef,                                  // kurs (valyuta → so'm)
-    supplier_id: input.supplierId,
+    supplier_id: input.isPrixot ? undefined : input.supplierId, // partnyor faqat rasxodда
     cash_id: input.cashId,
     form_id: input.formId,
     date: input.date ? `${input.date} 12:00:00` : undefined,
