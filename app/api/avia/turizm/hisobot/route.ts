@@ -15,10 +15,11 @@ import type { HisobotZayavka, TurizmHisobot } from '@/types/avia';
 const TOL = 100_000; // 100k so'm — yaxlitlash/shovqin ostonasi
 const DEAD = new Set([3, 4]); // Отказ, Аннулирована — chiqarib tashlanadi
 
-// Bugundan 12 oy oldingi sana (Y-m-d) — qamrov boshi.
-function twelveMonthsAgo(today: string): string {
+// Bugundan 24 oy oldingi sana (Y-m-d) — qamrov boshi. Qarzlar eski
+// zayavkalarda ham qolishi mumkin, shuning uchun 2 yil orqaga qaraymiz.
+function coverageStart(today: string): string {
   const [y, m, d] = today.split('-');
-  return `${Number(y) - 1}-${m}-${d}`;
+  return `${Number(y) - 2}-${m}-${d}`;
 }
 
 function buildReport(rows: HisobotZayavka[], today: string): TurizmHisobot {
@@ -47,7 +48,7 @@ function buildReport(rows: HisobotZayavka[], today: string): TurizmHisobot {
   return {
     generatedAt: new Date().toISOString(),
     today,
-    sinceDate: twelveMonthsAgo(today),
+    sinceDate: coverageStart(today),
     total: active.length,
     kutilayotgan,
     otkazilmagan,
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
   if (auth instanceof NextResponse) return auth;
 
   const today = todayStr();
-  const since = twelveMonthsAgo(today);
+  const since = coverageStart(today);
   const refresh = new URL(request.url).searchParams.get('refresh') === '1';
 
   try {

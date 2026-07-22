@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import * as XLSX from 'xlsx';
 import {
   FileText, RefreshCw, Download, CalendarClock, ArrowLeftRight,
-  AlertTriangle, Building2, Wallet,
+  AlertTriangle, Building2, Wallet, ChevronRight,
 } from 'lucide-react';
 import type { HisobotZayavka, TurizmHisobot } from '@/types/avia';
 
@@ -20,6 +20,7 @@ const C = {
 const th: React.CSSProperties = { padding: '9px 10px', textAlign: 'left', color: C.mut, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', borderBottom: `2px solid ${C.line}`, position: 'sticky', top: 0, backgroundColor: C.card };
 const td: React.CSSProperties = { padding: '8px 10px', fontSize: 12.5, borderBottom: `1px solid ${C.line}`, whiteSpace: 'nowrap' };
 const mono = 'var(--font-geist-mono)';
+const TOL = 100_000; // shovqin ostonasi (route bilan bir xil)
 
 // Zayavka holatini rangli belgilash (В работе default)
 const payColor = (id: number) => (id === 3 ? C.green : id === 2 ? C.orange : C.red);
@@ -179,19 +180,8 @@ export default function TurizmHisobotPage() {
             ]}
             rows={mijozQarz} />
 
-          {/* C2) Biz partnyorga qarz */}
-          <Section title="Qarzdorlar — biz partnyorga qarz" subtitle="Partnyor tannarxidan kam to'langan" icon={<Building2 size={18} />} color={C.teal} count={partnyorQarz.length}
-            total={partnyorQarz.reduce((s, r) => s + r.partnerDebt, 0)}
-            cols={[
-              { h: 'Zayavka', cell: zNum },
-              { h: 'Partnyor', cell: (r) => <span style={{ color: '#e6f0ea' }}>{r.supplierName || '—'}</span> },
-              { h: 'Mijoz', cell: (r) => <span style={{ color: C.mut }}>{r.client}</span> },
-              { h: 'Xizmat sanasi', cell: date },
-              { h: 'Netto', right: true, cell: (r) => money(r.netto) },
-              { h: "To'langan", right: true, cell: (r) => money(r.partnerPaid, C.green) },
-              { h: 'QARZ', right: true, cell: (r) => <b style={{ fontFamily: mono, color: C.teal }}>{fmt(r.partnerDebt)}</b> },
-            ]}
-            rows={partnyorQarz} />
+          {/* C2) Biz partnyorga qarz — PARTNYOR BO'YICHA guruhlangan, ochiladigan */}
+          <PartnerDebtGroups rows={partnyorQarz} />
         </>
       )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -232,6 +222,93 @@ function Section({ title, subtitle, icon, color, count, total, cols, rows }: {
             )}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// Partnyorga qarz — partnyor bo'yicha guruhlangan, har birini bosib zayavkalari ochiladi.
+function PartnerDebtGroups({ rows }: { rows: HisobotZayavka[] }) {
+  const groups = useMemo(() => {
+    const m = new Map<string, HisobotZayavka[]>();
+    for (const r of rows) {
+      const k = r.supplierName || '(nomsiz partnyor)';
+      const arr = m.get(k); if (arr) arr.push(r); else m.set(k, [r]);
+    }
+    return [...m.entries()]
+      .map(([supplier, list]) => ({
+        supplier,
+        list: [...list].sort((a, b) => b.partnerDebt - a.partnerDebt),
+        jami: list.reduce((s, r) => s + r.partnerDebt, 0),
+        // "harakatga tayyor": mijoz to'lagan bo'lsa — ushlab turgan, o'tkazish kerak bo'lgan pul
+        actionable: list.reduce((s, r) => s + (r.clientPaid > TOL ? Math.min(r.partnerDebt, r.clientPaid) : 0), 0),
+      }))
+      .sort((a, b) => b.jami - a.jami);
+  }, [rows]);
+  const total = groups.reduce((s, g) => s + g.jami, 0);
+  const [open, setOpen] = useState<string | null>(null);
+
+  const gth: React.CSSProperties = { ...th, position: 'static' };
+  return (
+    <div style={{ backgroundColor: C.card, border: `1px solid ${C.line}`, borderRadius: 12, overflow: 'hidden', marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', borderBottom: `1px solid ${C.line}` }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: C.teal + '18', border: `1px solid ${C.teal}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.teal, flexShrink: 0 }}><Building2 size={18} /></div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>Qarzdorlar — biz partnyorga qarz <span style={{ color: C.teal, fontSize: 13 }}>· {groups.length} partnyor</span></div>
+          <div style={{ color: C.dim, fontSize: 11.5 }}>Partnyorni bosing — ostidagi zayavkalar ochiladi. ▲ = mijoz to‘lagan (o‘tkazish kerak)</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: C.teal, fontSize: 17, fontWeight: 800, fontFamily: mono }}>{fmt(total)}</div>
+          <div style={{ color: C.dim, fontSize: 10.5 }}>jami qarz, so‘m</div>
+        </div>
+      </div>
+      <div style={{ maxHeight: '62vh', overflow: 'auto' }}>
+        {groups.map((g) => {
+          const isOpen = open === g.supplier;
+          return (
+            <div key={g.supplier} style={{ borderBottom: `1px solid ${C.line}` }}>
+              <button onClick={() => setOpen(isOpen ? null : g.supplier)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', background: isOpen ? '#0A0F0D' : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                <ChevronRight size={16} style={{ color: C.mut, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', flexShrink: 0 }} />
+                <span style={{ flex: 1, color: '#fff', fontSize: 13.5, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.supplier}</span>
+                <span style={{ color: C.dim, fontSize: 11.5, whiteSpace: 'nowrap' }}>{g.list.length} ta</span>
+                {g.actionable > TOL && <span style={{ color: C.orange, fontSize: 11.5, fontFamily: mono, whiteSpace: 'nowrap' }}>▲ {fmt(g.actionable)}</span>}
+                <span style={{ color: C.teal, fontSize: 14, fontWeight: 800, fontFamily: mono, minWidth: 118, textAlign: 'right' }}>{fmt(g.jami)}</span>
+              </button>
+              {isOpen && (
+                <div style={{ overflowX: 'auto', backgroundColor: '#0A0F0D' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+                    <thead><tr>
+                      <th style={gth}>Zayavka</th>
+                      <th style={gth}>Mijoz</th>
+                      <th style={gth}>Xizmat sanasi</th>
+                      <th style={{ ...gth, textAlign: 'right' }}>Netto</th>
+                      <th style={{ ...gth, textAlign: 'right' }}>To‘langan</th>
+                      <th style={{ ...gth, textAlign: 'right' }}>Mijoz to‘lagan</th>
+                      <th style={{ ...gth, textAlign: 'right' }}>QARZ</th>
+                      <th style={gth}>Holat</th>
+                    </tr></thead>
+                    <tbody>
+                      {g.list.map((r) => (
+                        <tr key={r.id}>
+                          <td style={{ ...td, fontFamily: mono, color: '#fff' }}>{r.id}</td>
+                          <td style={{ ...td, color: C.mut }}>{r.client}</td>
+                          <td style={{ ...td, fontFamily: mono, color: C.mut }}>{r.dateBegin || '—'}</td>
+                          <td style={{ ...td, textAlign: 'right', fontFamily: mono }}>{fmt(r.netto)}</td>
+                          <td style={{ ...td, textAlign: 'right', fontFamily: mono, color: C.green }}>{fmt(r.partnerPaid)}</td>
+                          <td style={{ ...td, textAlign: 'right', fontFamily: mono, color: r.clientPaid > TOL ? C.orange : C.dim }}>{fmt(r.clientPaid)}</td>
+                          <td style={{ ...td, textAlign: 'right' }}><b style={{ fontFamily: mono, color: C.teal }}>{fmt(r.partnerDebt)}</b></td>
+                          <td style={{ ...td, color: C.dim }}>{r.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {groups.length === 0 && <div style={{ ...td, textAlign: 'center', color: C.dim, padding: 26 }}>Qarz yo‘q</div>}
       </div>
     </div>
   );
