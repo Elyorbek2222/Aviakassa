@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { TrendingDown, Search, Pencil, Lock, X, Wallet, ListChecks } from 'lucide-react';
 import { formatMoney, ticketEditRemainingMs } from '@/lib/utils';
-import type { Refund } from '@/types/avia';
+import { AIRLINE_LABELS, type Refund, type AirlineKey } from '@/types/avia';
 import RefundForm from '@/components/avia/RefundForm';
 import { inputStyle, labelStyle, MessageBox } from '@/components/avia/formStyles';
 
@@ -16,6 +16,8 @@ const T = { card: '#141F19', line: '#1E2E24', mut: '#8A9A8F', dim: '#4A5C50', te
 // olib tashlangani uchun bu yerda mustaqil yozildi.
 function RefundEditModal({ refund, onClose, onSaved }: { refund: Refund; onClose: () => void; onSaved: () => void }) {
   const [summa, setSumma] = useState(String(refund.summa));
+  const [airline, setAirline] = useState<AirlineKey>(refund.airline || 'uzairways');
+  const [manba, setManba] = useState(refund.manba || '');
   const [izoh, setIzoh] = useState(refund.izoh || '');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -25,7 +27,7 @@ function RefundEditModal({ refund, onClose, onSaved }: { refund: Refund; onClose
     try {
       const res = await fetch('/api/avia/refund', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: refund.id, summa: Number(summa), izoh }),
+        body: JSON.stringify({ id: refund.id, summa: Number(summa), airline, airlineName: AIRLINE_LABELS[airline] || airline, manba, izoh }),
       });
       if (res.ok) { onSaved(); onClose(); }
       else { const d = await res.json().catch(() => ({})); setMessage(d.error || 'Xatolik'); }
@@ -49,6 +51,18 @@ function RefundEditModal({ refund, onClose, onSaved }: { refund: Refund; onClose
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Qaytarilgan summa (UZS)</label>
             <input type="number" value={summa} onChange={(e) => setSumma(e.target.value)} required style={inputStyle} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div>
+              <label style={labelStyle}>Aviakompaniya</label>
+              <select value={airline} onChange={(e) => setAirline(e.target.value as AirlineKey)} style={inputStyle}>
+                {Object.entries(AIRLINE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Qaysi joydan (manba)</label>
+              <input type="text" value={manba} onChange={(e) => setManba(e.target.value)} placeholder="Centrum, to'g'ridan…" style={inputStyle} />
+            </div>
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>Izoh</label>
@@ -84,6 +98,8 @@ export default function BegzodRefundPage() {
     .sort((a, b) => (a.sana < b.sana ? 1 : a.sana > b.sana ? -1 : 0));
 
   const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
+  // Oldingi manbalar — tez tanlash uchun (datalist)
+  const manbaSuggestions = Array.from(new Set(refundlar.map((r) => r.manba).filter((m): m is string => !!m))).slice(0, 30);
 
   const th: React.CSSProperties = { padding: '10px 12px', textAlign: 'left', color: T.mut, fontSize: 12, fontWeight: 500 };
   const kpiCard = (label: string, value: string, color: string, Icon: typeof Wallet) => (
@@ -111,7 +127,7 @@ export default function BegzodRefundPage() {
           <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <TrendingDown size={16} style={{ color: T.orange }} /> Yangi Refund
           </h3>
-          <RefundForm onSuccess={mutate} />
+          <RefundForm onSuccess={mutate} manbaSuggestions={manbaSuggestions} />
         </div>
 
         {/* O'ng: KPI + jadval */}
@@ -133,12 +149,14 @@ export default function BegzodRefundPage() {
               <div style={{ color: T.dim, textAlign: 'center', padding: 40, fontSize: 14 }}>{q ? 'Topilmadi' : 'Hozircha refund yo‘q'}</div>
             ) : (
               <div style={{ maxHeight: '58vh', overflowY: 'auto', overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${T.line}` }}>
                       <th style={th}>Sana</th>
                       <th style={th}>Bilet</th>
                       <th style={th}>Mijoz</th>
+                      <th style={th}>Aviakompaniya</th>
+                      <th style={th}>Manba</th>
                       <th style={{ ...th, textAlign: 'right' }}>Summa</th>
                       <th style={th}>Izoh</th>
                       <th style={{ ...th, textAlign: 'right' }}>Amal</th>
@@ -154,6 +172,8 @@ export default function BegzodRefundPage() {
                           <td style={{ padding: '9px 12px', color: T.mut, fontSize: 12 }}>{r.sana}</td>
                           <td style={{ padding: '9px 12px', color: T.text, fontSize: 12, fontFamily: 'var(--font-geist-mono)' }}>{r.biletRaqam || '—'}</td>
                           <td style={{ padding: '9px 12px', color: T.text, fontSize: 13 }}>{r.mijozIsmi || '—'}</td>
+                          <td style={{ padding: '9px 12px', color: T.mut, fontSize: 12 }}>{r.airlineName || (r.airline ? AIRLINE_LABELS[r.airline] : '') || '—'}</td>
+                          <td style={{ padding: '9px 12px', color: T.mut, fontSize: 12 }}>{r.manba || '—'}</td>
                           <td style={{ padding: '9px 12px', textAlign: 'right', color: T.orange, fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>−{formatMoney(r.summa)}</td>
                           <td style={{ padding: '9px 12px', color: T.dim, fontSize: 12 }}>{r.izoh || '—'}</td>
                           <td style={{ padding: '9px 12px', textAlign: 'right' }}>

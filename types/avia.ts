@@ -81,6 +81,9 @@ export interface Refund {
   biletRaqam: string;
   mijozIsmi: string;
   summa: number; // UZS
+  airline?: AirlineKey;  // qaysi aviakompaniya bileti
+  airlineName?: string;  // ko'rsatish uchun
+  manba?: string;        // bilet qaysi joydan/kimdan olingan (Centrum, to'g'ridan, agent...)
   izoh?: string;
 }
 

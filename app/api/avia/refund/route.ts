@@ -37,6 +37,9 @@ export async function POST(request: NextRequest) {
       biletRaqam: body.biletRaqam || '',
       mijozIsmi: body.mijozIsmi || '',
       summa: summaRes.value,
+      airline: body.airline || undefined,
+      airlineName: body.airlineName || undefined,
+      manba: body.manba || undefined,
       izoh: body.izoh || '',
     };
 
@@ -89,6 +92,9 @@ export async function PATCH(request: NextRequest) {
       biletRaqam: body.biletRaqam ?? existing.biletRaqam,
       mijozIsmi: body.mijozIsmi ?? existing.mijozIsmi,
       summa: summaRes.value,
+      airline: body.airline ?? existing.airline,
+      airlineName: body.airlineName ?? existing.airlineName,
+      manba: body.manba ?? existing.manba,
       izoh: body.izoh ?? existing.izoh,
     };
 

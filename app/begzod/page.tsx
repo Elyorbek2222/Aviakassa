@@ -12,6 +12,15 @@ import { periodRange, periodLabel } from '@/lib/period';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+// Sana (YYYY-MM-DD) ni delta kun siljitish — UTC bilan (timezone drift bo'lmasin).
+// Bugundan oshmaydi (kelajak sana yozilmaydi).
+function shiftDay(sana: string, delta: number): string {
+  const d = new Date((sana || todayStr()) + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + delta);
+  const res = d.toISOString().slice(0, 10);
+  return res > todayStr() ? todayStr() : res;
+}
+
 function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => void; suggestions: string[]; todayCount: number }) {
   const [form, setForm] = useState({
     airline: 'uzairways' as AirlineKey,
@@ -182,14 +191,25 @@ function TicketForm({ onSuccess, suggestions, todayCount }: { onSuccess: () => v
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Sotuv sanasi</label>
-          <input
-            type="date"
-            value={form.sana}
-            max={todayStr()}
-            onChange={(e) => setForm({ ...form, sana: e.target.value })}
-            required
-            style={inputStyle}
-          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="date"
+              value={form.sana}
+              max={todayStr()}
+              onChange={(e) => setForm({ ...form, sana: e.target.value })}
+              required
+              style={{ ...inputStyle, flex: '1 1 160px', width: 'auto' }}
+            />
+            {/* Ketma-ket kunlarni tez kiritish uchun kun siljitish tugmalari */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, sana: shiftDay(f.sana, -1) }))} title="Bir kun orqaga"
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>−1</button>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, sana: shiftDay(f.sana, 1) }))} title="Bir kun oldinga"
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #1E2E24', backgroundColor: 'transparent', color: '#8A9A8F', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>+1</button>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, sana: todayStr() }))} title="Bugungi sana"
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #7CFF4F40', backgroundColor: '#7CFF4F14', color: '#7CFF4F', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Bugun</button>
+            </div>
+          </div>
           {form.sana !== todayStr() && (
             <div style={{ color: '#F5A623', fontSize: 11, marginTop: 5 }}>
               ⚠️ Orqa sana — foyda shu oyga (masalan iyunga) yoziladi, bugungi kunga emas.

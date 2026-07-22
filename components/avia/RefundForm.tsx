@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { AIRLINE_LABELS, type AirlineKey } from '@/types/avia';
 import { inputStyle, labelStyle, MessageBox } from './formStyles';
 
-export default function RefundForm({ onSuccess }: { onSuccess: () => void }) {
+export default function RefundForm({ onSuccess, manbaSuggestions = [] }: { onSuccess: () => void; manbaSuggestions?: string[] }) {
   const [biletRaqam, setBiletRaqam] = useState('');
   const [mijozIsmi, setMijozIsmi] = useState('');
+  const [airline, setAirline] = useState<AirlineKey>('uzairways');
+  const [manba, setManba] = useState('');
   const [summa, setSumma] = useState('');
   const [izoh, setIzoh] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,10 +21,18 @@ export default function RefundForm({ onSuccess }: { onSuccess: () => void }) {
       const res = await fetch('/api/avia/refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ biletRaqam, mijozIsmi, summa: Number(summa), izoh }),
+        body: JSON.stringify({
+          biletRaqam, mijozIsmi,
+          airline, airlineName: AIRLINE_LABELS[airline] || airline,
+          manba: manba || undefined,
+          summa: Number(summa), izoh,
+        }),
       });
-      if (res.ok) { setMessage('Refund saqlandi!'); setBiletRaqam(''); setMijozIsmi(''); setSumma(''); setIzoh(''); onSuccess(); }
-      else setMessage('Xatolik');
+      if (res.ok) {
+        setMessage('Refund saqlandi!');
+        setBiletRaqam(''); setMijozIsmi(''); setManba(''); setSumma(''); setIzoh('');
+        onSuccess();
+      } else setMessage('Xatolik');
     } catch { setMessage('Xatolik'); }
     finally { setLoading(false); }
   };
@@ -35,6 +46,23 @@ export default function RefundForm({ onSuccess }: { onSuccess: () => void }) {
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>Mijoz Ismi</label>
         <input type="text" value={mijozIsmi} onChange={e => setMijozIsmi(e.target.value)} placeholder="Familiya Ism" required style={inputStyle} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div>
+          <label style={labelStyle}>Aviakompaniya</label>
+          <select value={airline} onChange={e => setAirline(e.target.value as AirlineKey)} style={inputStyle}>
+            {Object.entries(AIRLINE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={labelStyle}>Qaysi joydan (manba)</label>
+          <input type="text" list="refund-manba-list" value={manba} onChange={e => setManba(e.target.value)} placeholder="Centrum, to'g'ridan, agent…" style={inputStyle} />
+          <datalist id="refund-manba-list">
+            {manbaSuggestions.map((m) => <option key={m} value={m} />)}
+          </datalist>
+        </div>
       </div>
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>Qaytariladigan Summa (UZS)</label>
