@@ -1333,7 +1333,9 @@ export default function FinansistPage() {
                         const meta = MOV_META[m.kind];
                         const remaining = ticketEditRemainingMs(m, now);
                         const editable = true; // barcha harakatlar 48 soat ichida tahrirlanadi
-                        const canEdit = editable && remaining > 0;
+                        // Bilet raqamisiz prixot — bilet raqami qo'shish uchun har doim tahrirlanadi
+                        const biletRaqamsizPrixod = m.kind === 'prixod' && (!m.payment?.biletRaqam || !m.payment.biletRaqam.trim());
+                        const canEdit = editable && (remaining > 0 || biletRaqamsizPrixod);
                         const soat = Math.floor(remaining / 3600000);
                         const openEdit = () => {
                           if (m.kind === 'prixod') setEditPayment(m.payment!);
@@ -1353,8 +1355,8 @@ export default function FinansistPage() {
                             <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                               {editable ? (
                                 canEdit ? (
-                                  <button onClick={openEdit} title={`${soat} soat ichida tahrirlash mumkin`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', backgroundColor: '#F5A62318', color: T.orange, border: `1px solid ${T.orange}40` }}>
-                                    <Pencil size={10} /> {soat}s
+                                  <button onClick={openEdit} title={biletRaqamsizPrixod && remaining <= 0 ? "Bilet raqami qo'shish" : `${soat} soat ichida tahrirlash mumkin`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', backgroundColor: '#F5A62318', color: T.orange, border: `1px solid ${T.orange}40` }}>
+                                    <Pencil size={10} /> {biletRaqamsizPrixod && remaining <= 0 ? 'bilet+' : `${soat}s`}
                                   </button>
                                 ) : <span title="48 soatlik muddat tugagan" style={{ display: 'inline-flex', alignItems: 'center', color: T.dim }}><Lock size={12} /></span>
                               ) : <span style={{ color: '#2A3A30', fontSize: 11 }}>—</span>}

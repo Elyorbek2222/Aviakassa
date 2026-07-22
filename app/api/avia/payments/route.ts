@@ -206,7 +206,11 @@ export async function PATCH(request: NextRequest) {
     if (!isAdmin && !isFinance) {
       return NextResponse.json({ error: 'Tahrirlash huquqi yo\'q' }, { status: 403 });
     }
-    if (!isAdmin && ticketEditRemainingMs(existing) <= 0) {
+    // Bilet raqamisiz kiritilgan prixotlar keyin bilet raqami bilan bog'lanadi —
+    // ular uchun 48 soat cheklovi qo'llanmaydi (raqam qo'shish har doim mumkin).
+    // Bilet raqami BOR to'lovlar esa 48 soat himoyalangan (summa xavfsizligi).
+    const biletRaqamsiz = !existing.biletRaqam || !existing.biletRaqam.trim();
+    if (!isAdmin && !biletRaqamsiz && ticketEditRemainingMs(existing) <= 0) {
       return NextResponse.json({ error: '48 soatlik tahrirlash muddati tugagan' }, { status: 403 });
     }
 
