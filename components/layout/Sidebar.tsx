@@ -21,6 +21,7 @@ import {
   Globe,
   Wallet,
   TrendingDown,
+  CalendarClock,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -69,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/turizm', label: 'Turizm (SEM Travel)', icon: <Globe size={18} /> },
       { href: '/turizm/kassa', label: 'Kassa (ostatka)', icon: <Wallet size={18} /> },
       { href: '/turizm/fin', label: 'Fin Otdel (oylik)', icon: <Landmark size={18} /> },
+      { href: '/turizm/tolovlar', label: "To'lovlar jadvali", icon: <CalendarClock size={18} /> },
       { href: '/turizm/hisobot', label: 'Turizm hisoboti', icon: <FileText size={18} /> },
     ],
   },

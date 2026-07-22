@@ -23,8 +23,8 @@ const C = {
 interface Ref { id: number; name: string }
 interface RefsResp { error?: string; suppliers: Ref[]; currencies: Ref[]; cashboxes: Ref[]; forms: Ref[] }
 interface ListResp { oy: string; yozuvlar: TurizmYozuv[] }
-interface ZService { name: string; price: number }
-interface ZInfo { rId: number; nomer: string; mijoz: string; manager: string; status: string; xizmatlar: ZService[]; sell: number; clientPaid: number; clientDebt: number }
+interface ZService { name: string; price: number; currency: string; kurs: number; dateBegin?: string; dateEnd?: string; partner?: string }
+interface ZInfo { rId: number; nomer: string; mijoz: string; manager: string; status: string; xizmatlar: ZService[]; sell: number; clientPaid: number; clientDebt: number; currencyId: number; kurs: number; valyuta: string }
 
 // So'm valyutasi (kurs shart emas)
 const isSom = (name?: string) => !name || /сум|so'?m|uzs/i.test(name);
@@ -70,9 +70,20 @@ export default function TurizmPage() {
       if (!r.ok) { setZInfo(null); setZErr(d.error || 'Topilmadi'); return; }
       const info = d.info as ZInfo;
       setZInfo(info);
-      // Ishlash oson: prixotда summa bo'sh bo'lsa — mijoz qarzini avtomatik qo'yamiz (o'zgartirsa bo'ladi)
-      if (f.tur === 'prixot' && !f.summa.trim() && info?.clientDebt > 0) {
-        setF((p) => ({ ...p, summa: String(Math.round(info.clientDebt)) }));
+      // Ishlash oson: prixotда zayavkadan valyuta + kurs + summani avtomat qo'yamiz
+      // (o'zgartirsa bo'ladi). Kurs uslugalardan (service.rate) olinadi.
+      if (f.tur === 'prixot') {
+        setF((p) => {
+          const next = { ...p };
+          if (info.currencyId) next.currencyId = String(info.currencyId);
+          if (info.kurs > 0) next.kurs = String(info.kurs);
+          if (!p.summa.trim() && info.clientDebt > 0) {
+            next.summa = info.kurs > 0
+              ? String(Math.round(info.clientDebt / info.kurs)) // USD zayavka — qarz dollarda
+              : String(Math.round(info.clientDebt));            // so'm zayavka
+          }
+          return next;
+        });
       }
     } catch { setZErr("Serverga ulanib bo'lmadi"); }
     finally { setZLoading(false); }
@@ -259,12 +270,15 @@ export default function TurizmPage() {
                   {zInfo.status && <span style={{ color: C.mut }}>Holat: <b style={{ color: C.teal }}>{zInfo.status}</b></span>}
                   {zInfo.sell > 0 && <span style={{ color: C.mut }}>Sotuv: <b style={{ color: '#fff' }}>{fmt(zInfo.sell)}</b></span>}
                   {zInfo.clientDebt > 0 && <span style={{ color: C.mut }}>Mijoz qarzi: <b style={{ color: C.orange }}>{fmt(zInfo.clientDebt)}</b></span>}
+                  {zInfo.kurs > 0 && <span style={{ color: C.mut }}>Valyuta: <b style={{ color: C.teal }}>{zInfo.valyuta}</b> · Kurs: <b style={{ color: '#fff' }}>{fmt(zInfo.kurs)}</b></span>}
                 </div>
                 {zInfo.xizmatlar.length > 0 ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {zInfo.xizmatlar.map((x, i) => (
                       <span key={i} style={{ fontSize: 11.5, color: '#cfe', backgroundColor: C.teal + '14', border: `1px solid ${C.teal}30`, borderRadius: 6, padding: '3px 8px' }}>
-                        {x.name}{x.price > 0 ? ` · ${fmt(x.price)}` : ''}
+                        {x.name}
+                        {x.dateBegin ? ` · ${x.dateBegin}${x.dateEnd && x.dateEnd !== x.dateBegin ? '→' + x.dateEnd : ''}` : ''}
+                        {x.price > 0 ? ` · ${fmt(x.price)}${x.currency ? ' ' + x.currency : ''}` : ''}
                       </span>
                     ))}
                   </div>

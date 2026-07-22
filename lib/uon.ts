@@ -67,6 +67,24 @@ function errText(data: unknown): string {
   return 'U-ON API xatosi';
 }
 
+// To'lov allaqachon yo'q (o'chirilgan) — xato emas, shu holatni aniqlaydi.
+function tolovYoq(msg: string): boolean {
+  return /not\s*found|no\s*such|not\s*exist|не\s*найден|отсутств|topilmadi/i.test(msg);
+}
+
+// U-ON xato matnlarini (ingliz/rus) foydalanuvchi tushunadigan o'zbekchага tarjima.
+function uonXatoUz(msg: string): string {
+  const m = msg.toLowerCase();
+  if (tolovYoq(m)) return "To'lov U-ON'da topilmadi — allaqachon o'chirilgan bo'lishi mumkin";
+  if (/method\s*not\s*allowed/.test(m)) return "U-ON so'rov usuli noto'g'ri (texnik xato) — dasturchiga xabar bering";
+  if (/access|denied|forbidden|unauthor|доступ|запрещ|ключ|api\s*key|token/.test(m)) return "U-ON: ruxsat yo'q yoki API kalit noto'g'ri";
+  if (/timeout|timed?\s*out|время|таймаут|gateway/.test(m)) return "U-ON javob bermadi (vaqt tugadi) — biroz kutib qayta urinib ko'ring";
+  if (/currency|валют/.test(m)) return "U-ON: valyuta noto'g'ri tanlangan";
+  if (/required|обязатель|must|empty|пуст|не\s*указан/.test(m)) return "U-ON: majburiy maydon to'ldirilmagan";
+  if (/r_id|request.*not|заявк.*не/.test(m)) return "U-ON: zayavka topilmadi yoki noto'g'ri";
+  return `U-ON xatosi: ${msg}`; // noma'lum — asl matn ham qoladi (dasturchi uchun)
+}
+
 async function uonGet(path: string): Promise<{ httpOk: boolean; data: unknown }> {
   const res = await fetch(`${BASE}/${apiKey()}/${path}.json`, { cache: 'no-store' });
   let data: unknown = null;
@@ -176,7 +194,10 @@ export async function resolveZayavka(nomer: string | number): Promise<number | n
 // (nima uchun to'lov yozayotganini tekshirish). `request/{id}` javobida services
 // inline keladi. Topilmasa null.
 
-export interface ZayavkaService { name: string; price: number }
+export interface ZayavkaService {
+  name: string; price: number; currency: string; kurs: number;
+  dateBegin?: string; dateEnd?: string; partner?: string;
+}
 export interface ZayavkaInfo {
   rId: number;
   nomer: string;
@@ -187,21 +208,37 @@ export interface ZayavkaInfo {
   sell: number;
   clientPaid: number;
   clientDebt: number;
+  currencyId: number; // zayavka valyutasi — formaga mos (2=USD, 18=so'm)
+  kurs: number;       // USD kursi (so'm bo'lsa 0)
+  valyuta: string;    // 'USD' / "so'm"
 }
 
-// Uslugalar U-ON'da request ichida inline — kalit account/versiyaga qarab har xil
-// bo'lishi mumkin, shuning uchun himoyalangan parsing (topilmasa bo'sh ro'yxat).
+// Xizmatlar U-ON request ichida inline (`services`). Har birida: service_type
+// (Отель/Авиа...), hotel/city/country, sanalar, price + currency + rate (=KURS),
+// partner_name. Nomni shu maydonlardan yasaymiz; kurs/valyuta prixotга avtomat qo'yiladi.
 function parseServices(r: Record<string, unknown>): ZayavkaService[] {
-  const raw = r.services ?? r.service ?? r.tovar ?? r.nomenclature;
+  const raw = r.services ?? r.service;
   const rows = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
   return rows
+    .filter((s) => s && typeof s === 'object' && Number((s as Record<string, unknown>).is_active) !== 0)
     .map((s) => {
-      const o = (s && typeof s === 'object' ? s : {}) as Record<string, unknown>;
-      const name = String(o.name ?? o.title ?? o.nomenclature ?? o.service_name ?? o.type_name ?? '').trim();
-      const price = num(o.price ?? o.summ ?? o.sum ?? o.cost ?? o.calc_price);
-      return { name: name || 'Xizmat', price };
-    })
-    .filter((x) => x.name !== 'Xizmat' || x.price > 0);
+      const o = s as Record<string, unknown>;
+      const parts = [
+        String(o.service_type ?? '').trim(),                     // "Отель" / "Авиабилет" ...
+        String(o.hotel ?? o.description ?? '').trim(),           // mehmonxona yoki izoh
+        String(o.city ?? o.country ?? '').trim(),               // shahar/mamlakat
+      ].filter(Boolean);
+      const usd = Number(o.currency_id) === 2 || /usd|доллар/i.test(String(o.currency ?? ''));
+      return {
+        name: parts.join(' — ') || 'Xizmat',
+        price: num(o.price),
+        currency: usd ? 'USD' : String(o.currency ?? '').trim(),
+        kurs: usd ? num(o.rate) : 0,
+        dateBegin: String(o.date_begin ?? '').slice(0, 10) || undefined,
+        dateEnd: String(o.date_end ?? '').slice(0, 10) || undefined,
+        partner: String(o.partner_name ?? '').trim() || undefined,
+      };
+    });
 }
 
 export async function getZayavkaInfo(nomer: string | number): Promise<ZayavkaInfo | null> {
@@ -213,16 +250,22 @@ export async function getZayavkaInfo(nomer: string | number): Promise<ZayavkaInf
   if (rows.length === 0) return null;
   const r = rows[0];
   const z = mapZayavka(r);
+  const xizmatlar = parseServices(r);
+  // Zayavka valyutasi/kursi — eng qimmat USD xizmatdan (odatda butun zayavka bitta valyuta).
+  const dom = xizmatlar.filter((x) => x.currency === 'USD' && x.kurs > 0).sort((a, b) => b.price - a.price)[0];
   return {
     rId: z.id || n,
     nomer: String(n),
     mijoz: z.client,
     manager: z.manager,
     status: z.status,
-    xizmatlar: parseServices(r),
+    xizmatlar,
     sell: z.sell,
     clientPaid: z.clientPaid,
     clientDebt: z.clientDebt,
+    currencyId: dom ? 2 : 18,
+    kurs: dom ? dom.kurs : 0,
+    valyuta: dom ? 'USD' : "so'm",
   };
 }
 
@@ -264,7 +307,7 @@ export async function createPayment(
     date: input.date ? `${input.date} 12:00:00` : undefined,
     reason: input.reason,
   });
-  if (!isOk(httpOk, data)) return { ok: false, error: errText(data) };
+  if (!isOk(httpOk, data)) return { ok: false, error: uonXatoUz(errText(data)) };
   const d = (data && typeof data === 'object' ? (data as Record<string, unknown>) : {}) as Record<string, unknown>;
   const rawId = d.id ?? d.payment_id ?? (d.result && typeof d.result === 'object' ? (d.result as Record<string, unknown>).id : undefined);
   return { ok: true, paymentId: rawId !== undefined ? String(rawId) : undefined };
@@ -275,8 +318,12 @@ export async function createPayment(
 // GET → 404 "Method not allowed (see GET/POST)". POST (bo'sh tana) → {result:200}.
 export async function deletePayment(paymentId: string | number): Promise<{ ok: true } | { ok: false; error: string }> {
   const { httpOk, data } = await uonPost(`payment/delete/${paymentId}`, {});
-  if (!isOk(httpOk, data)) return { ok: false, error: errText(data) };
-  return { ok: true };
+  if (isOk(httpOk, data)) return { ok: true };
+  const raw = errText(data);
+  // IDEMPOTENT: to'lov allaqachon yo'q bo'lsa — o'chirish maqsadi bajarilgan, muvaffaqiyat.
+  // Aks holda mahalliy yozuv abadiy qamalib qolardi (11004 "not found" holati).
+  if (tolovYoq(raw)) return { ok: true };
+  return { ok: false, error: uonXatoUz(raw) };
 }
 
 // ===== Zayavkalar ro'yxati (hisobotlar uchun) =====

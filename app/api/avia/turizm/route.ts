@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         date: sana,
         reason: izoh,
       });
-      if (!res.ok) return NextResponse.json({ error: `U-ON: ${res.error}` }, { status: 502 });
+      if (!res.ok) return NextResponse.json({ error: res.error }, { status: 502 });
       paymentId = res.paymentId;
     } catch (e) {
       return NextResponse.json({ error: e instanceof Error ? e.message : 'U-ON bilan bog\'lanib bo\'lmadi' }, { status: 502 });
@@ -147,7 +147,7 @@ export async function DELETE(request: NextRequest) {
     if (before.uonPaymentId) {
       try {
         const res = await deletePayment(before.uonPaymentId);
-        if (!res.ok) return NextResponse.json({ error: `U-ON: ${res.error}` }, { status: 502 });
+        if (!res.ok) return NextResponse.json({ error: res.error }, { status: 502 });
       } catch (e) {
         return NextResponse.json({ error: e instanceof Error ? e.message : "U-ON bilan bog'lanib bo'lmadi" }, { status: 502 });
       }
@@ -206,7 +206,7 @@ export async function PATCH(request: NextRequest) {
     if (existing.uonPaymentId) {
       try {
         const del = await deletePayment(existing.uonPaymentId);
-        if (!del.ok) return NextResponse.json({ error: `U-ON o'chirishda: ${del.error}` }, { status: 502 });
+        if (!del.ok) return NextResponse.json({ error: del.error }, { status: 502 });
       } catch (e) {
         return NextResponse.json({ error: e instanceof Error ? e.message : "U-ON bilan bog'lanib bo'lmadi" }, { status: 502 });
       }
@@ -223,7 +223,7 @@ export async function PATCH(request: NextRequest) {
       if (!res.ok) {
         doc.yozuvlar = doc.yozuvlar.filter((y) => y.id !== id);
         await saveTurizmDoc(doc);
-        return NextResponse.json({ error: `U-ON: ${res.error}. Eski to'lov o'chirildi — qayta kiriting.` }, { status: 502 });
+        return NextResponse.json({ error: `${res.error} — eski to'lov o'chirildi, qayta kiriting.` }, { status: 502 });
       }
       paymentId = res.paymentId;
     } catch (e) {
