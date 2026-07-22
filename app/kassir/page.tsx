@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import {
   Banknote, Smartphone, Building2, ArrowUpRight, ArrowDownRight,
   CheckCircle2, Landmark, Calculator, Pencil, Lock, X,
-  Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText, ArrowRight, Send,
+  Wallet, DollarSign, BookOpen, ArrowLeftRight, Users, Plane, Search, ReceiptText, ArrowRight, Send, Download,
 } from 'lucide-react';
 import { formatMoney, ticketEditRemainingMs, ticketCreatedAtMs } from '@/lib/utils';
 import { AIRLINE_LABELS, PEREVOD_TUR_LABEL, type PaymentType, type Valyuta, type AirlineKey, type AviaPayment, type Rasxod, type AviaTicket, type Obmen, type Inkassatsiya, type Perevod, type PerevodTur } from '@/types/avia';
@@ -942,6 +942,43 @@ export default function FinansistPage() {
     .filter((t) => !tixSearch || `${t.yolovchi} ${t.biletRaqam} ${t.airlineName}`.toLowerCase().includes(tixSearch.toLowerCase()))
     .sort((a, b) => ticketCreatedAtMs(b) - ticketCreatedAtMs(a));
 
+  // Excel export — joriy davr (period) bo'yicha: Kirim-Chiqim, Kassa kitobi, Qarzdorlar.
+  // xlsx dinamik yuklanadi (faqat bosilganda) — asosiy bundle kichik qoladi.
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.utils.book_new();
+
+      // 1. Kirim-Chiqim jurnali (joriy davr, +kirim / −chiqim)
+      const movRows = movements.map((m) => ({
+        Sana: m.sana,
+        Tur: MOV_META[m.kind].label,
+        Tavsif: m.label + (m.sub ? ` · ${m.sub}` : ''),
+        "Yo'nalish": MOV_META[m.kind].sign > 0 ? 'Kirim' : 'Chiqim',
+        'Summa (UZS)': MOV_META[m.kind].sign * m.summa,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(movRows.length ? movRows : [{ Sana: '', Tur: '', Tavsif: 'Ma\'lumot yo\'q', "Yo'nalish": '', 'Summa (UZS)': '' }]), 'Kirim-Chiqim');
+
+      // 2. Kassa kitobi (UZS) — kunlik ostatok
+      const bookRows = uzsBook.filter((d) => inPeriod(d.sana, period)).map((d) => ({
+        Sana: d.sana, 'Ostatok boshi': d.boshi, Kirim: d.kirim, Chiqim: d.chiqim, 'Ostatok oxiri': d.oxiri,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bookRows.length ? bookRows : [{ Sana: '', 'Ostatok boshi': '', Kirim: '', Chiqim: '', 'Ostatok oxiri': '' }]), 'Kassa kitobi UZS');
+
+      // 3. Qarzdorlar (joriy davr biletlari bo'yicha)
+      const debtRows = (debts as { biletRaqam: string; mijozIsmi: string; sotishNarxi: number; tolangan: number; qarz: number; sana: string }[]).map((d) => ({
+        Bilet: d.biletRaqam, Mijoz: d.mijozIsmi, 'Sotish narxi': d.sotishNarxi, "To'langan": d.tolangan, Qarz: d.qarz, Sana: d.sana,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(debtRows.length ? debtRows : [{ Bilet: '', Mijoz: '', 'Sotish narxi': '', "To'langan": '', Qarz: '', Sana: '' }]), 'Qarzdorlar');
+
+      XLSX.writeFile(wb, `Finansist-${periodLabel(period)}.xlsx`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const activeTab = TABS.find((t) => t.key === tab)!;
 
   // ===== UI helperlar =====
@@ -965,10 +1002,14 @@ export default function FinansistPage() {
       {/* Opshiy balans: bilet yozildi ↔ pul kirdi ↔ qoldiq qarz (katta, qizil) */}
       <SotuvBalansCard period={period} />
 
-      {/* Asosiy ko'rinish: Kassa | Hisobotlar */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+      {/* Asosiy ko'rinish: Kassa | Hisobotlar + Excel export */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
         <button onClick={() => setView('kassa')} style={segBtn(view === 'kassa', T.blue)}><Wallet size={16} /> Kassa</button>
         <button onClick={() => setView('hisobot')} style={segBtn(view === 'hisobot', T.green)}><ReceiptText size={16} /> Hisobotlar</button>
+        <button onClick={handleExport} disabled={exporting} title={`${periodLabel(period)} bo'yicha Excel'ga yuklab olish`}
+          style={{ ...segBtn(false, T.teal), marginLeft: 'auto', color: T.teal, borderColor: T.teal + '60', cursor: exporting ? 'wait' : 'pointer', opacity: exporting ? 0.6 : 1 }}>
+          <Download size={16} /> {exporting ? 'Tayyorlanmoqda…' : 'Excel yuklab olish'}
+        </button>
       </div>
 
       {/* Ostatka strip — Kun boshi → Kun oxiri (UZS va USD) */}
