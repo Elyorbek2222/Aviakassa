@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getSessionFromToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { getRefundlar, addRefund, updateRefund } from '@/lib/avia-storage';
-import { appendToSheet } from '@/lib/gsheet';
 import { requireRole, requireAuth } from '@/lib/api-auth';
 import { ticketEditRemainingMs, todayStr } from '@/lib/utils';
 import { validateAmount } from '@/lib/validate';
@@ -21,8 +20,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Bilet puli qaytarish — admin yoki Finansist (kassir).
-    const auth = await requireRole(['admin', 'kassir']);
+    // Bilet puli qaytarish — Aviakassir (begzod) kiritadi, admin ham qo'sha oladi.
+    // Refund kassa/foyda hisobiga KIRMAYDI — faqat qayd.
+    const auth = await requireRole(['admin', 'begzod']);
     if (auth instanceof NextResponse) return auth;
 
     const body = await request.json();
@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
 
     logChange(auth, 'create', 'refund', item.id, `Refund: ${item.mijozIsmi || item.biletRaqam || '—'} — ${item.summa.toLocaleString('ru-RU')} so'm`, { after: item }).catch(() => {});
 
-    // Google Sheets'ga nusxa (Tolovlar sheetga REFUND deb yoziladi)
-    appendToSheet('Tolovlar', [today, item.mijozIsmi, -item.summa, 'REFUND', item.biletRaqam, 'UZS', '', '', item.izoh || 'Refund']).catch(() => {});
+    // Refund hech qaysi hisobga (kassa/foyda/to'lovlar) kirmaydi — faqat qayd bo'lib
+    // turadi. Shu sabab Google Sheets "Tolovlar" varag'iga YOZILMAYDI (aks holda
+    // to'lovlar yig'indisini kamaytirib hisob-kitobni chalkashtirardi).
 
     return NextResponse.json({ refund: item, total: all.length });
   } catch {
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
 }
 
 // PATCH: mavjud refundni tahrirlash.
-// Ruxsat: admin — istalgan vaqtda; kassir (Finansist) — 48 soat ichida.
+// Ruxsat: admin — istalgan vaqtda; begzod (Aviakassir) — 48 soat ichida.
 export async function PATCH(request: NextRequest) {
   try {
     const cookieStore = await cookies();
@@ -71,8 +72,8 @@ export async function PATCH(request: NextRequest) {
     if (!existing) return NextResponse.json({ error: 'Refund topilmadi' }, { status: 404 });
 
     const isAdmin = user.role === 'admin';
-    const isFinance = user.role === 'kassir';
-    if (!isAdmin && !isFinance) {
+    const isBegzod = user.role === 'begzod';
+    if (!isAdmin && !isBegzod) {
       return NextResponse.json({ error: 'Tahrirlash huquqi yo\'q' }, { status: 403 });
     }
     if (!isAdmin && ticketEditRemainingMs(existing) <= 0) {

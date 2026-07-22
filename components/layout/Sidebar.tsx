@@ -20,6 +20,7 @@ import {
   Coins,
   Globe,
   Wallet,
+  TrendingDown,
 } from 'lucide-react';
 import { ROLE_PAGES, type UserRole, type AuthUser } from '@/lib/auth';
 
@@ -50,6 +51,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/begzod', label: 'Biletlar kirgazish', icon: <FileText size={18} /> },
       { href: '/begzod/royxat', label: "Biletlar ro'yxati", icon: <ListChecks size={18} /> },
+      { href: '/begzod/refund', label: 'Refund (qaytarish)', icon: <TrendingDown size={18} /> },
       { href: '/begzod/debts', label: 'Qarzdorlar', icon: <AlertTriangle size={18} /> },
     ],
   },
@@ -65,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Turizm',
     items: [
       { href: '/turizm', label: 'Turizm (SEM Travel)', icon: <Globe size={18} /> },
+      { href: '/turizm/kassa', label: 'Kassa (ostatka)', icon: <Wallet size={18} /> },
       { href: '/turizm/hisobot', label: 'Turizm hisoboti', icon: <FileText size={18} /> },
     ],
   },

@@ -161,7 +161,7 @@ export interface AviaKPI {
   jamiBiletlar: number;
   bugunBiletlar: number;
   jamiSotuv: number;
-  stok: number; // NAQD kassa (Excel OSTATOK) = naqd + obmen(so'm) − inkassatsiya − rasxod − refund
+  stok: number; // NAQD kassa (Excel OSTATOK) = naqd + obmen(so'm) − inkassatsiya − rasxod (refund KIRMAYDI)
   usdKassa: number; // USD kassa = USD to'lovlar − obmen(USD)
   bankUzs: number; // Plastik + perechisleniya (bank kirim) — naqd kassadan tashqarida
   bankBalans: number; // Bank hisobi balansi = plastik+perech + naqddan topshirilgan − perevodlar

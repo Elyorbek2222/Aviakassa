@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getRefundlar, getSettings, getObmenlar, getPerevodlar } from '@/lib/avia-storage';
+import { getTickets, getPayments, getInkassatsiya, getRasxodlar, getSettings, getObmenlar, getPerevodlar } from '@/lib/avia-storage';
 import { todayStr } from '@/lib/utils';
 import { requireAuth } from '@/lib/api-auth';
 import type {
@@ -25,18 +25,19 @@ export async function GET(request: NextRequest) {
 
     // Barcha manbalarni PARALLEL o'qiymiz — ilgari 6 so'rov ketma-ket edi
     // (~6× sekin). Endi eng sekin bitta so'rov vaqtiga tushadi.
+    // Refund BU HISOBGA KIRMAYDI — bilet refundi Aviakassir tomonida alohida qayd
+    // qilinadi (kassa/foyda/sverkaga ta'sir qilmaydi). Shu sabab bu yerda o'qilmaydi.
     const [settings, ...rest] = await Promise.all([
       getSettings(),
       getTickets(),
       getPayments(),
       getInkassatsiya(),
       getRasxodlar(),
-      getRefundlar(),
       getObmenlar(),
       getPerevodlar(),
     ]);
     // Quyidagilar sana/agent/aviakompaniya filtrlari bilan qayta tayinlanadi.
-    let [tickets, payments, inkassatsiya, rasxodlar, refundlar, obmenlar, perevodlar] = rest;
+    let [tickets, payments, inkassatsiya, rasxodlar, obmenlar, perevodlar] = rest;
 
     // Apply date filters
     if (from) {
@@ -44,7 +45,6 @@ export async function GET(request: NextRequest) {
       payments = payments.filter((p) => p.sana >= from);
       inkassatsiya = inkassatsiya.filter((i) => i.sana >= from);
       rasxodlar = rasxodlar.filter((r) => r.sana >= from);
-      refundlar = refundlar.filter((r) => r.sana >= from);
       obmenlar = obmenlar.filter((o) => o.sana >= from);
       perevodlar = perevodlar.filter((p) => p.sana >= from);
     }
@@ -53,7 +53,6 @@ export async function GET(request: NextRequest) {
       payments = payments.filter((p) => p.sana <= to);
       inkassatsiya = inkassatsiya.filter((i) => i.sana <= to);
       rasxodlar = rasxodlar.filter((r) => r.sana <= to);
-      refundlar = refundlar.filter((r) => r.sana <= to);
       obmenlar = obmenlar.filter((o) => o.sana <= to);
       perevodlar = perevodlar.filter((p) => p.sana <= to);
     }
@@ -71,7 +70,8 @@ export async function GET(request: NextRequest) {
     const jamiSotuv = tickets.reduce((s, t) => s + t.sotishNarxi, 0);
 
     // Kassa modeli — Excel OSTATOK bilan bir xil (kassir hisobot varag'i):
-    //   NAQD kassa (stok): naqd + obmen(so'm) − inkassatsiya − rasxod − refund
+    //   NAQD kassa (stok): naqd + obmen(so'm) − inkassatsiya − rasxod
+    //   (Refund KIRMAYDI — u Aviakassir tomonida faqat qayd, kassaga ta'sir qilmaydi.)
     //   USD kassa: USD to'lovlar − obmen(USD)
     //   Plastik / perechisleniya BANKKA boradi — naqd kassaga KIRMAYDI (alohida).
     // USD to'lovning so'm-ekvivalenti (p.summa) ham naqd kassaga qo'shilmaydi —
@@ -87,8 +87,7 @@ export async function GET(request: NextRequest) {
     const usdKirim = payments.reduce((s, p) => s + (p.valyuta === 'usd' ? (p.summAsl || 0) : 0), 0);
     const jamiInkassatsiya = inkassatsiya.reduce((s, i) => s + i.summa, 0);
     const jamiRasxod = rasxodlar.reduce((s, r) => s + r.summa, 0);
-    const jamiRefund = refundlar.reduce((s, r) => s + r.summa, 0);
-    const stok = naqd + obmenUzs - jamiInkassatsiya - jamiRasxod - jamiRefund;
+    const stok = naqd + obmenUzs - jamiInkassatsiya - jamiRasxod;
     const usdKassa = usdKirim - obmenUsd; // qolgan dollar
 
     // Bank hisobi (schet): plastik + perechisleniya bankka to'g'ridan-to'g'ri tushadi,
